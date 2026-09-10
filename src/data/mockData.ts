@@ -483,6 +483,7 @@ export const mockBlockchainBlocks: BlockchainBlock[] = [
     organization: 'TN_POLICE_MYLAPORE_ORG',
     transactions: [
       {
+        id: 'TX-FABRIC-TN0482-1048-01',
         txId: 'TX-FABRIC-TN0482-1048-01',
         blockNumber: 1048,
         timestamp: '2026-08-11T10:15:00Z',
@@ -503,6 +504,7 @@ export const mockBlockchainBlocks: BlockchainBlock[] = [
         status: 'COMMITTED'
       },
       {
+        id: 'TX-FABRIC-TN0482-1048-02',
         txId: 'TX-FABRIC-TN0482-1048-02',
         blockNumber: 1048,
         timestamp: '2026-08-11T10:16:12Z',
@@ -535,6 +537,7 @@ export const mockBlockchainBlocks: BlockchainBlock[] = [
     organization: 'TN_POLICE_MYLAPORE_ORG',
     transactions: [
       {
+        id: 'TX-FABRIC-TN0482-1049-01',
         txId: 'TX-FABRIC-TN0482-1049-01',
         blockNumber: 1049,
         timestamp: '2026-08-14T17:00:30Z',

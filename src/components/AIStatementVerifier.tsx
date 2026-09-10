@@ -1,34 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Sparkles, 
+  Mic, 
+  MicOff, 
   FileText, 
   CheckCircle2, 
   AlertTriangle, 
   HelpCircle, 
   Search, 
-  Mic, 
-  MicOff, 
-  RefreshCw, 
-  ShieldAlert, 
+  Languages, 
+  Scale, 
+  ShieldCheck, 
+  Cpu, 
   ArrowRight, 
-  Layers, 
-  Globe, 
+  Clock, 
   User, 
-  Volume2,
+  ChevronRight,
   ExternalLink,
-  ChevronDown
+  Download,
+  Share2,
+  RefreshCw,
+  Layers,
+  BookOpen,
+  Volume2
 } from 'lucide-react';
-import { EvidenceItem, FIRDetails, LanguageCode, OfficerUser, StatementClaim, StatementVerificationReport } from '../types';
+import { 
+  FIRDetails, 
+  EvidenceItem, 
+  LanguageCode, 
+  OfficerUser, 
+  StatementVerificationReport, 
+  StatementClaim 
+} from '../types';
 import { verifyStatementAI, transcribeAudioAI } from '../services/api';
 import { translations } from '../translations/i18n';
-import { mockStatementReports } from '../data/mockData';
 
 interface AIStatementVerifierProps {
   caseItem: FIRDetails;
   evidenceList: EvidenceItem[];
   currentOfficer: OfficerUser;
   currentLang: LanguageCode;
-  onLogBlockchainEvent: (action: any, details: string, evidenceId?: string) => void;
+  onLogBlockchainEvent: (action: any, details: string, evidenceId?: string, evidenceHash?: string) => void;
 }
 
 export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
@@ -39,16 +51,21 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
   onLogBlockchainEvent,
 }) => {
   const t = translations[currentLang];
-  
+
   const [statementText, setStatementText] = useState('');
   const [speakerName, setSpeakerName] = useState('Dinesh Kumar (Prime Suspect)');
   const [speakerRole, setSpeakerRole] = useState<'SUSPECT' | 'WITNESS' | 'COMPLAINANT' | 'VICTIM'>('SUSPECT');
   const [inputLang, setInputLang] = useState<LanguageCode>(currentLang);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [report, setReport] = useState<StatementVerificationReport | null>(mockStatementReports[0] || null);
+  const [verifyStep, setVerifyStep] = useState(0);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [speechFeedback, setSpeechFeedback] = useState<string | null>(null);
+  const speechRecognitionRef = useRef<any>(null);
 
-  // Preset statements for demonstration
+  // Verification report state
+  const [report, setReport] = useState<StatementVerificationReport | null>(null);
+
+  // Preset statements for instant demonstration
   const presets = [
     {
       title: 'Suspect Dinesh Alibi (English) - Contradicted by CDR & CCTV',
@@ -80,18 +97,75 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
     setSpeakerRole(preset.role);
   };
 
-  const handleTranscribeVoice = async () => {
-    setIsRecordingAudio(true);
-    setTimeout(async () => {
-      try {
-        const res = await transcribeAudioAI({ language: inputLang });
-        setStatementText(res.transcript);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsRecordingAudio(false);
+  // Real Web Speech API voice capture or fallback
+  const handleToggleVoiceRecording = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (isRecordingAudio) {
+      if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.stop();
+        } catch (e) {}
       }
-    }, 1500);
+      setIsRecordingAudio(false);
+      setSpeechFeedback(null);
+      return;
+    }
+
+    if (SpeechRecognition) {
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = inputLang === 'ta' ? 'ta-IN' : inputLang === 'ml' ? 'ml-IN' : 'en-IN';
+
+        recognition.onstart = () => {
+          setIsRecordingAudio(true);
+          setSpeechFeedback('Listening to microphone... Speak clearly');
+        };
+
+        recognition.onresult = (event: any) => {
+          let transcript = '';
+          for (let i = 0; i < event.results.length; ++i) {
+            transcript += event.results[i][0].transcript + ' ';
+          }
+          setStatementText((prev) => (transcript.trim() ? transcript.trim() : prev));
+        };
+
+        recognition.onerror = (event: any) => {
+          console.warn('Speech recognition warning:', event.error);
+          setIsRecordingAudio(false);
+          setSpeechFeedback('Microphone permission needed. Simulating speech transcript...');
+          setTimeout(handleFallbackTranscribe, 500);
+        };
+
+        recognition.onend = () => {
+          setIsRecordingAudio(false);
+          setSpeechFeedback(null);
+        };
+
+        recognition.start();
+        speechRecognitionRef.current = recognition;
+      } catch (err) {
+        handleFallbackTranscribe();
+      }
+    } else {
+      handleFallbackTranscribe();
+    }
+  };
+
+  const handleFallbackTranscribe = async () => {
+    setIsRecordingAudio(true);
+    setSpeechFeedback('Transcribing audio model...');
+    try {
+      const res = await transcribeAudioAI({ language: inputLang });
+      setStatementText(res.transcript);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsRecordingAudio(false);
+      setSpeechFeedback(null);
+    }
   };
 
   const handleRunVerification = async (e: React.FormEvent) => {
@@ -99,6 +173,12 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
     if (!statementText.trim()) return;
 
     setIsVerifying(true);
+    setVerifyStep(1);
+
+    const stepInterval = setInterval(() => {
+      setVerifyStep((prev) => (prev < 3 ? prev + 1 : prev));
+    }, 600);
+
     try {
       const result = await verifyStatementAI({
         statementText,
@@ -109,16 +189,19 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
         evidenceList,
       });
 
+      clearInterval(stepInterval);
       setReport(result);
       onLogBlockchainEvent(
         'AI_STATEMENT_VERIFIED',
-        `AI Cross-examination completed on ${speakerName}: Score ${result.overallConsistencyScore}%, Contradictions: ${result.contradictedCount}`,
+        `AI Cross-examination completed on ${speakerName}: Consistency Score ${result.overallConsistencyScore}%, Contradictions: ${result.contradictedCount}`,
         undefined
       );
     } catch (err) {
       console.error(err);
+      clearInterval(stepInterval);
     } finally {
       setIsVerifying(false);
+      setVerifyStep(0);
     }
   };
 
@@ -132,13 +215,13 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
         );
       case 'CONTRADICTED':
         return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1 animate-pulse">
             <AlertTriangle className="w-3.5 h-3.5" /> Contradicted
           </span>
         );
       case 'UNVERIFIED':
         return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1">
+          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-400 border border-zinc-700 flex items-center gap-1">
             <HelpCircle className="w-3.5 h-3.5" /> Unverified
           </span>
         );
@@ -257,14 +340,13 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs font-semibold text-zinc-300">
-              Record or Paste Recorded Statement (CrPC 161 / BNSS 180 Statement)
+              Record or Paste Recorded Statement (Section 180 BNSS 2023 / CrPC 161)
             </label>
 
-            {/* Audio Recorder Trigger */}
+            {/* Voice Dictation Button */}
             <button
               type="button"
-              onClick={handleTranscribeVoice}
-              disabled={isRecordingAudio}
+              onClick={handleToggleVoiceRecording}
               className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium border transition ${
                 isRecordingAudio
                   ? 'bg-red-500/20 border-red-500 text-red-300 animate-pulse'
@@ -272,9 +354,16 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
               }`}
             >
               {isRecordingAudio ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5 text-purple-400" />}
-              <span>{isRecordingAudio ? 'Transcribing Voice...' : 'Simulate Voice Recording'}</span>
+              <span>{isRecordingAudio ? 'Stop Dictation' : 'Live Mic Dictation'}</span>
             </button>
           </div>
+
+          {speechFeedback && (
+            <div className="mb-2 px-3 py-1.5 rounded bg-purple-950/40 border border-purple-800/40 text-[11px] text-purple-300 flex items-center gap-2">
+              <RefreshCw className="w-3 h-3 animate-spin text-purple-400" />
+              <span>{speechFeedback}</span>
+            </div>
+          )}
 
           <textarea
             rows={4}
@@ -296,12 +385,17 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
           <button
             type="submit"
             disabled={isVerifying || !statementText.trim()}
-            className="px-5 py-2 rounded bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_15px_rgba(147,51,234,0.35)] transition flex items-center gap-2 disabled:opacity-50"
+            className="px-5 py-2.5 rounded bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_15px_rgba(147,51,234,0.35)] transition flex items-center gap-2 disabled:opacity-50"
           >
             {isVerifying ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Running Gemini 3.7 Flash Cross-Examination...</span>
+                <span>
+                  {verifyStep === 1 && 'Extracting factual assertions & alibi timeline...'}
+                  {verifyStep === 2 && 'Cross-referencing CDR towers, CCTV & bank ledger...'}
+                  {verifyStep === 3 && 'Evaluating contradiction matrix & BSA admissibility...'}
+                  {verifyStep === 0 && 'Verifying Statement with Gemini 3.7 Flash...'}
+                </span>
               </>
             ) : (
               <>
@@ -315,118 +409,100 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
 
       {/* Verification Report Section */}
       {report && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2">
           
           {/* Top Score Banner */}
-          <div className="p-5 rounded-lg bg-[#0a0c0f] border border-zinc-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="p-5 rounded-lg bg-[#0a0c0f] border border-zinc-800/80 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
             
-            <div className="flex items-start gap-4">
-              <div className={`p-4 rounded border text-center shrink-0 ${
-                report.overallConsistencyScore >= 70
-                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                  : report.overallConsistencyScore >= 40
-                  ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                  : 'bg-red-500/10 border-red-500/20 text-red-400'
-              }`}>
-                <div className="text-2xl font-bold font-mono">{report.overallConsistencyScore}%</div>
-                <div className="text-[9px] uppercase font-bold tracking-widest mt-0.5">Consistency</div>
+            <div className="md:col-span-1 text-center md:text-left border-b md:border-b-0 md:border-r border-zinc-800 pb-3 md:pb-0 md:pr-4">
+              <span className="text-[10px] uppercase font-bold text-zinc-500 block">Consistency Score</span>
+              <div className="flex items-baseline justify-center md:justify-start gap-1 mt-1">
+                <span className={`text-4xl font-black ${
+                  report.overallConsistencyScore >= 70
+                    ? 'text-emerald-400'
+                    : report.overallConsistencyScore >= 40
+                    ? 'text-amber-400'
+                    : 'text-rose-500'
+                }`}>
+                  {report.overallConsistencyScore}%
+                </span>
+                <span className="text-xs text-zinc-500 font-medium">/ 100</span>
               </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-white">
-                  Cross-Examination Report for {report.speakerName}
-                </h3>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Analysis completed on {report.analysisTimestamp.split('T')[0]} • {report.claims.length} Testable Claims Extracted
-                </p>
-                <div className="flex flex-wrap gap-2 mt-3 text-xs font-mono">
-                  <span className="px-2.5 py-1 rounded bg-red-500/10 text-red-400 border border-red-500/20">
-                    ⚠️ {report.contradictedCount} Contradicted
-                  </span>
-                  <span className="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    ✅ {report.consistentCount} Consistent
-                  </span>
-                  <span className="px-2.5 py-1 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
-                    ❓ {report.unverifiedCount} Unverified
-                  </span>
-                </div>
-              </div>
+              <span className="text-[11px] text-zinc-400 mt-1 block">
+                {report.overallConsistencyScore < 50 ? 'Severe Contradictions Found' : 'Moderately Consistent'}
+              </span>
             </div>
 
-            {/* Legal Notice */}
-            <div className="p-3 rounded bg-zinc-950 border border-zinc-800 max-w-sm text-[11px] text-zinc-400">
-              <strong className="text-amber-400 block mb-0.5">LEGAL / PROCEDURAL ADVISORY:</strong>
-              {report.aiDisclaimer}
+            <div className="md:col-span-3 grid grid-cols-3 gap-3 text-center">
+              <div className="p-3 rounded bg-zinc-950 border border-zinc-800/80">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase block">Verified Consistent</span>
+                <span className="text-xl font-bold text-emerald-400 mt-0.5 block">{report.consistentCount}</span>
+              </div>
+              <div className="p-3 rounded bg-zinc-950 border border-zinc-800/80">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase block">Direct Contradictions</span>
+                <span className="text-xl font-bold text-rose-400 mt-0.5 block">{report.contradictedCount}</span>
+              </div>
+              <div className="p-3 rounded bg-zinc-950 border border-zinc-800/80">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase block">Requires Field Review</span>
+                <span className="text-xl font-bold text-amber-400 mt-0.5 block">{report.unverifiedCount}</span>
+              </div>
             </div>
 
           </div>
 
-          {/* Claim-by-Claim Cross-Examination Cards */}
+          {/* AI Forensic Summary Box */}
+          <div className="p-4 rounded-lg bg-zinc-950 border border-purple-500/30 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-purple-300">
+              <Scale className="w-4 h-4 text-purple-400" />
+              <span>AI Judicial Assessment Summary (Bharatiya Sakshya Adhiniyam 2023)</span>
+            </div>
+            <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+              {report.judicialAdmissibilityNotes}
+            </p>
+          </div>
+
+          {/* Claim-by-Claim Breakdown Cards */}
           <div className="space-y-3">
-            <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-              Factual Claim Breakdown & Evidence Cross-Examinations:
+            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+              Claim-by-Claim Forensic Cross-Examination ({report.claims.length} Assertions Analyzed):
             </h3>
 
-            {report.claims.map((claim) => (
+            {report.claims.map((claim, index) => (
               <div
-                key={claim.id}
-                className={`p-4 rounded-lg border transition space-y-3 ${
+                key={claim.claimId || index}
+                className={`p-4 rounded-lg border text-xs space-y-3 transition ${
                   claim.status === 'CONTRADICTED'
-                    ? 'bg-[#0a0c0f] border-red-500/30'
+                    ? 'bg-[#0e0708] border-rose-500/40'
                     : claim.status === 'CONSISTENT'
-                    ? 'bg-[#0a0c0f] border-emerald-500/30'
-                    : 'bg-[#0a0c0f] border-zinc-800/60'
+                    ? 'bg-[#070e0a] border-emerald-500/30'
+                    : 'bg-[#0a0c0f] border-zinc-800'
                 }`}
               >
-                {/* Claim Header */}
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-800">
-                      {claim.category}
-                    </span>
-                    <span className="text-xs text-zinc-500 font-mono">Confidence: {claim.confidenceScore}%</span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono text-zinc-500">Assertion #{index + 1}</span>
+                    <p className="text-sm font-semibold text-white">"{claim.claimText}"</p>
                   </div>
-
                   {getStatusBadge(claim.status)}
                 </div>
 
-                {/* Claim Content */}
-                <p className="text-xs font-medium text-white leading-relaxed">
-                  "{claim.claimText}"
-                </p>
+                {claim.explanation && (
+                  <div className="p-2.5 rounded bg-zinc-950/70 border border-zinc-800/60 text-zinc-300 text-[11px] leading-relaxed">
+                    <strong className="text-zinc-200 block mb-0.5">Forensic Findings:</strong>
+                    {claim.explanation}
+                  </div>
+                )}
 
-                {/* Evidence Matching Summary */}
-                <div className="p-3 rounded bg-zinc-950 border border-zinc-800/80 text-xs text-zinc-300 space-y-2">
-                  <p className="font-normal text-zinc-200">
-                    <strong className="text-purple-400">Forensic Analysis: </strong>
-                    {claim.evidenceMatchSummary}
-                  </p>
-
-                  {/* Cited Evidence Cards */}
-                  {claim.citedEvidence.length > 0 && (
-                    <div className="space-y-1.5 pt-1">
-                      <span className="text-[9px] uppercase font-bold tracking-widest text-zinc-500">
-                        CITED EVIDENCE RECORDS:
-                      </span>
-                      {claim.citedEvidence.map((ev, idx) => (
-                        <div key={idx} className="p-2.5 rounded bg-[#0a0c0f] border border-zinc-800 text-[11px] space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-blue-400 font-mono">{ev.evidenceTitle} ({ev.evidenceId})</span>
-                          </div>
-                          <p className="text-zinc-400 font-mono text-[10px]">
-                            Snippet: "{ev.quoteOrSnippet}"
-                          </p>
-                          {ev.contradictionReason && (
-                            <p className="text-red-400 font-medium">
-                              ⚠️ Conflict: {ev.contradictionReason}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
+                {/* Evidence citation link if available */}
+                {claim.contradictingEvidenceId && (
+                  <div className="flex items-center justify-between text-[10px] font-mono text-rose-400 pt-1 border-t border-rose-950/60">
+                    <span className="flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      Contradicted by Vault Item: {claim.contradictingEvidenceId}
+                    </span>
+                    <span className="text-zinc-500">Confidence: {(claim.confidenceScore * 100).toFixed(0)}%</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

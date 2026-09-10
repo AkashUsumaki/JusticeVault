@@ -15,30 +15,65 @@ import {
   Sparkles,
   ArrowRight,
   ShieldAlert,
-  Layers
+  Layers,
+  Plus
 } from 'lucide-react';
-import { EntityNode, FIRDetails, LanguageCode, RelationshipEdge } from '../types';
+import { EntityNode, EvidenceItem, FIRDetails, LanguageCode, RelationshipEdge } from '../types';
 import { mockRelationshipGraph } from '../data/mockData';
 import { translations } from '../translations/i18n';
 
 interface RelationshipGraphProps {
   caseItem: FIRDetails;
   currentLang: LanguageCode;
+  evidenceList?: EvidenceItem[];
 }
 
 export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({
   caseItem,
   currentLang,
+  evidenceList = [],
 }) => {
   const t = translations[currentLang];
   const [selectedType, setSelectedType] = useState<string>('ALL');
-  const [selectedNode, setSelectedNode] = useState<EntityNode | null>(mockRelationshipGraph.nodes[0]);
   const [activeTab, setActiveTab] = useState<'GRAPH' | 'TIMELINE'>('GRAPH');
 
-  const nodes = mockRelationshipGraph.nodes;
-  const edges = mockRelationshipGraph.edges;
+  // Convert real case evidence into graph nodes
+  const dynamicNodes: EntityNode[] = [
+    ...mockRelationshipGraph.nodes,
+    ...evidenceList
+      .filter((e) => !mockRelationshipGraph.nodes.some((n) => n.id === e.id))
+      .map((e) => ({
+        id: e.id,
+        type: 'EVIDENCE_ITEM' as const,
+        label: e.title,
+        subLabel: `${e.category} • ${e.sourceSystem}`,
+        riskLevel: (e.isTampered ? 'HIGH' : 'LOW') as any,
+        metadata: {
+          'SHA-256': `${e.sha256Hash.substring(0, 16)}...`,
+          'Format': e.mimeType,
+          'Custodian': e.uploadedByOfficerName,
+          'GPS Location': e.gpsLocation?.addressName || 'Police Station',
+        },
+      })),
+  ];
 
-  const filteredNodes = nodes.filter((n) => {
+  // Dynamically link newly captured/uploaded evidence to the case suspect & crime scene
+  const dynamicEdges: RelationshipEdge[] = [
+    ...mockRelationshipGraph.edges,
+    ...evidenceList.map((e) => ({
+      id: `EDGE-DYN-${e.id}`,
+      sourceNodeId: 'NODE-DINESH',
+      targetNodeId: e.id,
+      relationshipType: 'ASSOCIATED_EVIDENCE' as const,
+      description: `Cryptographically verified proof item for FIR ${caseItem.firNumber}`,
+      confidenceScore: 0.98,
+      verifiedByOfficer: e.uploadedByOfficerName,
+    })),
+  ];
+
+  const [selectedNode, setSelectedNode] = useState<EntityNode | null>(dynamicNodes[0]);
+
+  const filteredNodes = dynamicNodes.filter((n) => {
     if (selectedType === 'ALL') return true;
     return n.type === selectedType;
   });
@@ -56,7 +91,7 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({
       case 'LOCATION':
         return <Building2 className="w-4 h-4 text-red-400" />;
       case 'EVIDENCE_ITEM':
-        return <FileText className="w-4 h-4 text-blue-400" />;
+        return <FileText className="w-4 h-4 text-cyan-400" />;
     }
   };
 
@@ -76,13 +111,13 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({
       case 'LOCATION':
         return 'bg-[#0a0c0f] border-red-500/20 hover:border-red-400/50';
       case 'EVIDENCE_ITEM':
-        return 'bg-[#0a0c0f] border-blue-500/20 hover:border-blue-400/50';
+        return 'bg-[#0a0c0f] border-cyan-500/20 hover:border-cyan-400/50';
     }
   };
 
   // Connected edges for selected node
   const connectedEdges = selectedNode
-    ? edges.filter((e) => e.sourceNodeId === selectedNode.id || e.targetNodeId === selectedNode.id)
+    ? dynamicEdges.filter((e) => e.sourceNodeId === selectedNode.id || e.targetNodeId === selectedNode.id)
     : [];
 
   return (
@@ -98,7 +133,7 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight">{t.relationshipGraph}</h1>
               <p className="text-xs text-zinc-400">
-                Entity Link Analysis, Communication Records, Financial Mules & Event Timeline
+                Real-Time Entity Link Analysis, Financial Mules, CDR Tower Coordinates & Case Timeline
               </p>
             </div>
           </div>
@@ -113,7 +148,7 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({
             }`}
           >
             <Network className="w-3.5 h-3.5" />
-            <span>Entity Network</span>
+            <span>Entity Network ({dynamicNodes.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('TIMELINE')}
@@ -139,7 +174,7 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({
                 <button
                   key={type}
                   onClick={() => setSelectedType(type)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition ${
+                  className={`px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition ${
                     selectedType === type
                       ? 'bg-blue-600 text-white shadow-sm'
                       : 'bg-[#0a0c0f] text-zinc-400 hover:text-zinc-200 border border-zinc-800'
@@ -150,200 +185,130 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({
               ))}
             </div>
 
-            {/* Interactive Network Diagram Surface */}
-            <div className="p-6 rounded-lg bg-zinc-950 border border-zinc-800/80 shadow-inner relative min-h-[460px] overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px] opacity-40 pointer-events-none" />
-
-              <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 gap-3.5">
-                {filteredNodes.map((node) => {
-                  const isSelected = selectedNode?.id === node.id;
-                  return (
-                    <button
-                      key={node.id}
-                      onClick={() => setSelectedNode(node)}
-                      className={`p-3.5 rounded border text-left transition flex flex-col justify-between ${getNodeBg(
-                        node.type,
-                        isSelected
-                      )}`}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                          {getNodeIcon(node.type)}
-                        </div>
-                        <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-950 text-zinc-400 border border-zinc-800/50">
-                          {node.type}
-                        </span>
-                      </div>
-
-                      <div className="mt-2.5">
-                        <p className="text-xs font-bold text-white truncate">{node.label}</p>
-                        <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{node.id}</p>
-                      </div>
-                    </button>
-                  );
-                })}
+            {/* Interactive Nodes Board */}
+            <div className="p-6 rounded-lg bg-[#0a0c0f] border border-zinc-800/60 min-h-[440px] relative flex flex-wrap gap-4 items-center justify-center content-center shadow-inner">
+              <div className="absolute top-3 left-3 text-[10px] font-mono text-zinc-500 flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-purple-400" />
+                <span>Click any entity to inspect cryptographic linkage & evidentiary connections</span>
               </div>
 
-              {/* Edge Connections List Overlay */}
-              <div className="mt-6 pt-4 border-t border-zinc-800/80">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-2">
-                  Key Identified Forensic Relationships:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  {edges.slice(0, 6).map((e) => {
-                    const sourceNode = nodes.find((n) => n.id === e.sourceNodeId);
-                    const targetNode = nodes.find((n) => n.id === e.targetNodeId);
-                    return (
-                      <div key={e.id} className="p-2.5 rounded bg-[#0a0c0f] border border-zinc-800 flex items-center justify-between gap-2">
-                        <div className="truncate">
-                          <span className="text-white font-medium truncate block">{sourceNode?.label}</span>
-                          <span className="text-blue-400 text-[10px] font-mono">→ {e.relationshipType}</span>
-                        </div>
-                        <ArrowRight className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
-                        <div className="truncate text-right">
-                          <span className="text-zinc-300 font-medium truncate block">{targetNode?.label}</span>
-                          <span className="text-zinc-500 text-[10px]">{e.description}</span>
-                        </div>
+              {filteredNodes.map((node) => {
+                const isSelected = selectedNode?.id === node.id;
+                return (
+                  <button
+                    key={node.id}
+                    onClick={() => setSelectedNode(node)}
+                    className={`p-3.5 rounded-lg border text-left transition transform active:scale-95 space-y-1.5 min-w-[170px] max-w-[210px] ${getNodeBg(
+                      node.type,
+                      isSelected
+                    )}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                        {getNodeIcon(node.type)}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded font-mono ${
+                        node.riskLevel === 'HIGH'
+                          ? 'bg-red-500/20 text-red-400'
+                          : node.riskLevel === 'MEDIUM'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : 'bg-emerald-500/20 text-emerald-400'
+                      }`}>
+                        {node.riskLevel}
+                      </span>
+                    </div>
 
+                    <div>
+                      <p className="text-xs font-bold text-white tracking-tight truncate">{node.label}</p>
+                      <p className="text-[10px] text-zinc-400 truncate">{node.subLabel}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-
           </div>
 
-          {/* Node Inspector Panel */}
+          {/* Side Entity Detail Inspector */}
           <div className="space-y-4">
-            <div className="p-5 rounded-lg bg-[#0a0c0f] border border-zinc-800/60 space-y-4 shadow-sm">
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Entity Inspector</h3>
-                {selectedNode && (
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                    {selectedNode.type}
-                  </span>
-                )}
-              </div>
-
-              {selectedNode ? (
-                <div className="space-y-4 text-xs">
-                  <div>
-                    <span className="text-zinc-500 text-[10px] uppercase font-bold">Label / Name:</span>
-                    <p className="text-sm font-bold text-white mt-0.5">{selectedNode.label}</p>
-                    <p className="text-zinc-500 font-mono text-xs">{selectedNode.id}</p>
+            {selectedNode ? (
+              <div className="p-5 rounded-lg bg-[#0a0c0f] border border-zinc-800/80 space-y-4 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+                      {getNodeIcon(selectedNode.type)}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono text-zinc-500 uppercase">{selectedNode.type}</span>
+                      <h3 className="text-sm font-bold text-white">{selectedNode.label}</h3>
+                    </div>
                   </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
+                    selectedNode.riskLevel === 'HIGH'
+                      ? 'bg-red-500/20 text-red-400'
+                      : 'bg-emerald-500/20 text-emerald-400'
+                  }`}>
+                    {selectedNode.riskLevel} RISK
+                  </span>
+                </div>
 
-                  {/* Metadata key-value */}
-                  <div className="p-3 rounded bg-zinc-950 border border-zinc-800 space-y-2">
-                    {Object.entries(selectedNode.metadata || {}).map(([k, v]) => (
-                      <div key={k} className="flex items-center justify-between text-[11px]">
-                        <span className="text-zinc-500 capitalize">{k.replace(/([A-Z])/g, ' $1')}:</span>
-                        <span className="text-zinc-200 font-medium font-mono">{String(v)}</span>
+                <div className="space-y-2 border-t border-zinc-800 pt-3">
+                  <h4 className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Entity Metadata:</h4>
+                  <div className="space-y-1.5 text-xs font-mono">
+                    {Object.entries(selectedNode.metadata).map(([key, val]) => (
+                      <div key={key} className="flex justify-between p-2 rounded bg-zinc-950 border border-zinc-800/60">
+                        <span className="text-zinc-500 text-[11px]">{key}:</span>
+                        <span className="text-zinc-200 text-[11px] font-medium text-right max-w-[150px] truncate">{String(val)}</span>
                       </div>
                     ))}
                   </div>
+                </div>
 
-                  {/* Connected Relationships */}
-                  <div>
-                    <span className="text-zinc-400 text-[11px] font-bold block mb-2">
-                      Connected Relationships ({connectedEdges.length}):
-                    </span>
-                    <div className="space-y-2">
-                      {connectedEdges.map((edge) => {
-                        const otherId = edge.sourceNodeId === selectedNode.id ? edge.targetNodeId : edge.sourceNodeId;
-                        const otherNode = nodes.find((n) => n.id === otherId);
-                        return (
-                          <div key={edge.id} className="p-2.5 rounded bg-zinc-950 border border-zinc-800 text-[11px] space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-purple-300">{edge.relationshipType}</span>
-                              <span className="text-zinc-500 text-[10px] font-mono">{edge.evidenceSourceId}</span>
-                            </div>
-                            <p className="text-zinc-300">
-                              Connected with <strong className="text-white">{otherNode?.label}</strong>: {edge.description}
-                            </p>
+                <div className="space-y-2 border-t border-zinc-800 pt-3">
+                  <h4 className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                    Linked Evidentiary Connections ({connectedEdges.length}):
+                  </h4>
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {connectedEdges.map((edge) => {
+                      const otherNodeId = edge.sourceNodeId === selectedNode.id ? edge.targetNodeId : edge.sourceNodeId;
+                      const otherNode = dynamicNodes.find((n) => n.id === otherNodeId);
+                      return (
+                        <div key={edge.id} className="p-2.5 rounded bg-zinc-950 border border-zinc-800 text-xs space-y-1">
+                          <div className="flex items-center justify-between text-[10px] font-mono">
+                            <span className="text-blue-400">{edge.relationshipType.replace(/_/g, ' ')}</span>
+                            <span className="text-emerald-400 font-bold">{(edge.confidenceScore * 100).toFixed(0)}% Conf</span>
                           </div>
-                        );
-                      })}
-                    </div>
+                          <p className="font-semibold text-white">{otherNode ? otherNode.label : otherNodeId}</p>
+                          <p className="text-[11px] text-zinc-400 leading-relaxed">{edge.description}</p>
+                        </div>
+                      );
+                    })}
                   </div>
-
                 </div>
-              ) : (
-                <div className="p-8 text-center text-zinc-500 text-xs">
-                  Select an entity node from the canvas to inspect its relationships and evidence citations.
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="p-8 rounded-lg bg-[#0a0c0f] border border-zinc-800 text-center text-zinc-500 text-xs">
+                Select an entity to inspect connected links and forensic properties.
+              </div>
+            )}
           </div>
 
         </div>
       ) : (
-        /* Chronological Timeline View */
-        <div className="p-6 rounded-lg bg-[#0a0c0f] border border-zinc-800/60 space-y-6">
-          <div>
-            <h3 className="text-sm font-bold text-white">Chronological Incident & Investigation Timeline</h3>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Corroborated timeline combining FIR, CDR cell tower timestamps, ATM withdrawals, and Evidence Seizures
-            </p>
-          </div>
-
-          <div className="relative pl-6 space-y-6 before:absolute before:inset-0 before:left-2.5 before:w-0.5 before:bg-zinc-800">
-            {[
-              {
-                time: '2026-08-08 09:30 AM',
-                title: 'Victim Receives Fraudulent Cyber Call',
-                desc: 'Complainant contacted by suspect impersonating Customs Department officer demanding immediate penalty transfer.',
-                type: 'INCIDENT',
-                badge: 'Cyber Incident',
-              },
-              {
-                time: '2026-08-08 10:15 AM',
-                title: 'Bank Debit of ₹4,50,000 Transferred',
-                desc: 'Funds transferred from victim account to mule account ICICI-MULE-8839.',
-                type: 'FINANCIAL',
-                badge: 'Bank Statement',
-              },
-              {
-                time: '2026-08-08 12:05 PM',
-                title: 'ATM Cash Withdrawal Captured on CCTV',
-                desc: 'Suspect Dinesh withdrawn ₹50,000 cash at Kodambakkam High Road Axis ATM.',
-                type: 'EVIDENCE',
-                badge: 'CCTV Footage EVD-001',
-              },
-              {
-                time: '2026-08-08 12:12 PM',
-                title: 'CDR Tower Triangulation at Kodambakkam',
-                desc: 'Suspect mobile +91 98401 22910 connected to Cell Tower CHN-KDMB-04 (contradicting Tambaram alibi claim).',
-                type: 'CDR',
-                badge: 'CDR Record EVD-002',
-              },
-              {
-                time: '2026-08-09 11:00 AM',
-                title: 'FIR No. 240/2026 Registered at Mylapore PS',
-                desc: 'Formal complaint registered under BNS 318(4) and IT Act 66D. Case assigned to IO Inspector K. Senthil Kumar.',
-                type: 'FIR',
-                badge: 'FIR Genesis',
-              },
-              {
-                time: '2026-08-11 04:30 PM',
-                title: 'Seizure of Yamaha FZ Motorcycle (TN-09-CB-4491)',
-                desc: 'Vehicle seized from suspect residence under Panchnama / Seizure Memo with GPS timestamp.',
-                type: 'SEIZURE',
-                badge: 'Seizure Memo EVD-003',
-              },
-            ].map((event, idx) => (
-              <div key={idx} className="relative flex items-start gap-4 text-xs">
-                <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-blue-500 ring-4 ring-[#0a0c0f]" />
-                <div className="p-4 rounded bg-zinc-950 border border-zinc-800 w-full space-y-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-mono text-blue-400 text-[11px] font-bold">{event.time}</span>
-                    <span className="px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 font-mono text-[10px] border border-zinc-800">
-                      {event.badge}
+        /* Timeline View */
+        <div className="p-6 rounded-lg bg-[#0a0c0f] border border-zinc-800/60 space-y-4">
+          <div className="border-l-2 border-blue-500/40 ml-4 pl-6 space-y-6">
+            {caseItem.timelineEvents.map((evt, idx) => (
+              <div key={evt.id || idx} className="relative group">
+                <div className="absolute -left-[31px] top-0.5 w-3.5 h-3.5 rounded-full bg-blue-600 border-2 border-[#050608] group-hover:scale-125 transition" />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-blue-400 font-semibold">{evt.timestamp}</span>
+                    <span className="text-[10px] px-2 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono">
+                      {evt.verifiedByEvidenceId}
                     </span>
                   </div>
-                  <h4 className="text-xs font-bold text-white">{event.title}</h4>
-                  <p className="text-zinc-400 leading-relaxed text-xs">{event.desc}</p>
+                  <h3 className="text-sm font-bold text-white">{evt.title}</h3>
+                  <p className="text-xs text-zinc-300 leading-relaxed max-w-2xl">{evt.description}</p>
                 </div>
               </div>
             ))}

@@ -2,24 +2,86 @@
 
 @layer base {
   body {
-    background-color: #050608;
-    color: #d4d4d8;
+    background-color: #040e1c;
+    color: #e2e8f0;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* Custom stealth scrollbars */
+  /* Government of India Portal Tricolor & Official Accents */
+  .goi-tricolor-gradient {
+    background: linear-gradient(90deg, #FF9933 0%, #FF9933 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #138808 66.66%, #138808 100%);
+  }
+
+  .goi-navy-gradient {
+    background: linear-gradient(180deg, #071933 0%, #040e1c 100%);
+  }
+
+  .goi-card-surface {
+    background-color: #07172c;
+    border-color: #173354;
+  }
+
+  .goi-watermark {
+    background-image: radial-gradient(circle at center, rgba(30, 58, 138, 0.08) 0%, transparent 70%);
+  }
+
+  /* Custom government portal scrollbars */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #050608;
+    background: #030a14;
   }
   ::-webkit-scrollbar-thumb {
-    background: #18181b;
+    background: #1e3a66;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #27272a;
+    background: #2563eb;
+  }
+
+  /* Leaflet custom map tweaks for GoI Command Center */
+  .leaflet-container {
+    font-family: inherit;
+    background-color: #020813;
+  }
+  .leaflet-bar {
+    border: 1px solid rgba(51, 65, 85, 0.8) !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  }
+  .leaflet-bar a {
+    background-color: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.5) !important;
+  }
+  .leaflet-bar a:hover {
+    background-color: #1e293b !important;
+    color: #38bdf8 !important;
+  }
+  .leaflet-popup-content-wrapper {
+    background: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(51, 65, 85, 0.9) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7) !important;
+  }
+  .leaflet-popup-tip {
+    background: #0f172a !important;
+    border: 1px solid rgba(51, 65, 85, 0.9) !important;
+  }
+  .leaflet-popup-close-button {
+    color: #94a3b8 !important;
+    top: 8px !important;
+    right: 8px !important;
+  }
+  .leaflet-popup-close-button:hover {
+    color: #ffffff !important;
+  }
+  .custom-osm-marker-wrapper {
+    background: transparent !important;
+    border: none !important;
   }
 }

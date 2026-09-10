@@ -11,21 +11,18 @@ import {
   Scale,
   FileText,
   CheckCircle2,
-  X
+  X,
+  Mic,
+  MapPin,
+  Database,
+  Award,
+  ShieldCheck
 } from 'lucide-react';
-import { LanguageCode, OfficerUser } from '../types';
+import { LanguageCode, OfficerUser, NavTab } from '../types';
 import { translations } from '../translations/i18n';
+import { NationalEmblem, TricolorStripe } from './NationalEmblem';
 
-export type NavTab = 
-  | 'DASHBOARD'
-  | 'CASES'
-  | 'EVIDENCE'
-  | 'AI_VERIFIER'
-  | 'RELATIONSHIPS'
-  | 'BLOCKCHAIN'
-  | 'SHARING'
-  | 'INTEGRATIONS'
-  | 'FIELD_CAPTURE';
+export type { NavTab };
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -50,96 +47,126 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen = false,
   onClose,
 }) => {
-  const t = translations[currentLang];
+  const t = translations[currentLang] || translations.en;
 
   const navItems = [
     {
       id: 'DASHBOARD' as NavTab,
       label: t.navDashboard,
       icon: LayoutDashboard,
-      badge: null,
+      badge: 'ICJS',
+      badgeColor: 'bg-blue-950 text-amber-300 border border-amber-500/30',
     },
     {
       id: 'CASES' as NavTab,
       label: t.navCases,
       icon: FileText,
       badge: casesCount.toString(),
-      badgeColor: 'bg-zinc-900 text-zinc-400 border border-zinc-800',
+      badgeColor: 'bg-blue-950 text-slate-300 border border-blue-800/80',
     },
     {
       id: 'EVIDENCE' as NavTab,
       label: t.navEvidence,
       icon: FolderLock,
       badge: evidenceCount.toString(),
-      badgeColor: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
+      badgeColor: 'bg-blue-950 text-blue-300 border border-blue-600/40',
+    },
+    {
+      id: 'VICTIM_ENQUIRY' as NavTab,
+      label: t.navVictimEnquiry,
+      icon: Mic,
+      badge: 'Bhashini AI',
+      badgeColor: 'bg-purple-950/60 text-purple-300 border border-purple-600/30',
+    },
+    {
+      id: 'MAP_LOCATIONS' as NavTab,
+      label: t.navMapLocations,
+      icon: MapPin,
+      badge: 'OSM Leaflet',
+      badgeColor: 'bg-emerald-950/80 text-emerald-300 border border-emerald-600/40',
     },
     {
       id: 'AI_VERIFIER' as NavTab,
       label: t.navAIVerifier,
       icon: Sparkles,
-      badge: contradictionAlertsCount > 0 ? `${contradictionAlertsCount} Flagged` : 'AI Engine',
-      badgeColor: contradictionAlertsCount > 0 ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
+      badge: contradictionAlertsCount > 0 ? `${contradictionAlertsCount} Flagged` : 'BSA 65B AI',
+      badgeColor: contradictionAlertsCount > 0 ? 'bg-red-950/80 text-red-300 border border-red-500/40' : 'bg-blue-950 text-amber-300 border border-amber-500/30',
     },
     {
       id: 'RELATIONSHIPS' as NavTab,
       label: t.navRelations,
       icon: Network,
       badge: null,
+      badgeColor: '',
     },
     {
       id: 'BLOCKCHAIN' as NavTab,
       label: t.navBlockchain,
       icon: Boxes,
-      badge: 'Fabric',
-      badgeColor: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+      badge: 'Hyperledger',
+      badgeColor: 'bg-emerald-950 text-emerald-400 border border-emerald-500/40',
     },
     {
       id: 'SHARING' as NavTab,
       label: t.navSharing,
       icon: Share2,
-      badge: null,
+      badge: 'Inter-State',
+      badgeColor: 'bg-blue-950 text-blue-300 border border-blue-700/40',
     },
     {
       id: 'INTEGRATIONS' as NavTab,
       label: t.navIntegrations,
       icon: Cpu,
-      badge: 'CCTNS',
-      badgeColor: 'bg-zinc-800 text-zinc-400 border border-zinc-700',
+      badge: 'CCTNS Live',
+      badgeColor: 'bg-amber-950/80 text-amber-300 border border-amber-600/40',
     },
     {
       id: 'FIELD_CAPTURE' as NavTab,
       label: t.navMobileField,
       icon: Smartphone,
-      badge: 'GPS',
-      badgeColor: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+      badge: 'Sec 65B',
+      badgeColor: 'bg-amber-950/80 text-amber-300 border border-amber-600/40',
+    },
+    {
+      id: 'LEGAL' as NavTab,
+      label: 'BSA 2023 & Court Suite',
+      icon: Scale,
+      badge: 'Legal Acts',
+      badgeColor: 'bg-blue-950 text-blue-300 border border-blue-700/40',
     },
   ];
 
-  const handleItemClick = (id: NavTab) => {
-    onTabSelect(id);
+  const handleItemClick = (tab: NavTab) => {
+    onTabSelect(tab);
     if (onClose) {
       onClose();
     }
   };
 
   const renderContent = (isMobile = false) => (
-    <div className="flex flex-col justify-between h-full">
+    <div className="flex flex-col justify-between h-full bg-[#051429] text-slate-200">
       {/* Brand Header */}
       <div>
-        <div className="p-4 sm:p-5 border-b border-zinc-800/50 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-blue-900/60 flex items-center justify-between bg-[#040f20]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-sm flex items-center justify-center shadow-[0_0_15px_rgba(37,99,235,0.4)] text-white shrink-0">
-              <Scale className="w-5 h-5" />
-            </div>
+            <NationalEmblem size={32} className="shrink-0" />
             <div>
-              <div className="font-bold tracking-tighter text-white text-base">JusticeVault</div>
-              <div className="text-[9px] text-zinc-500 font-mono tracking-wider">EVIDENCE & COURT SUITE</div>
+              <div className="font-bold tracking-tight text-white text-base font-serif flex items-center gap-1.5">
+                <span>न्याय-साक्ष्य</span>
+                <span className="text-amber-400 text-xs font-sans font-bold">PORTAL</span>
+              </div>
+              <div className="text-[9px] text-amber-300 font-medium tracking-wider uppercase">
+                GOVERNMENT OF INDIA • MHA
+              </div>
+              <div className="text-[8px] text-slate-400 font-mono tracking-tight">
+                CCTNS &amp; ICJS DIGITAL EVIDENCE
+              </div>
             </div>
           </div>
           {isMobile && (
             <button
               onClick={onClose}
-              className="p-1.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
+              className="p-1.5 rounded bg-blue-950 border border-blue-800 text-slate-400 hover:text-white"
               aria-label="Close menu"
             >
               <X className="w-4 h-4" />
@@ -147,9 +174,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        <div className="py-3 sm:py-4">
-          <div className="px-5 mb-2 text-[10px] uppercase tracking-widest text-zinc-500 font-bold">
-            Investigation Modules
+        <div className="py-3 sm:py-3.5">
+          <div className="px-5 mb-2 text-[10px] uppercase tracking-widest text-amber-400 font-bold flex items-center justify-between">
+            <span>OFFICIAL MODULES</span>
+            <span className="text-[9px] text-slate-400 font-mono font-normal">GIGW 3.0</span>
           </div>
           <nav className="space-y-0.5">
             {navItems.map((item) => {
@@ -159,18 +187,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div
                   key={item.id}
                   onClick={() => handleItemClick(item.id)}
-                  className={`px-5 py-3 sm:py-2.5 flex items-center justify-between cursor-pointer transition text-xs font-medium active:scale-[0.99] ${
+                  className={`px-5 py-2.5 sm:py-2 flex items-center justify-between cursor-pointer transition text-xs font-medium active:scale-[0.99] ${
                     isActive
-                      ? 'bg-blue-600/10 text-blue-400 border-r-2 border-blue-500 font-semibold'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40'
+                      ? 'bg-blue-900/60 text-amber-300 border-r-4 border-amber-500 font-semibold shadow-inner'
+                      : 'text-slate-300 hover:text-white hover:bg-blue-950/50'
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate">
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-400' : 'text-zinc-500'}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
                     <span className="truncate">{item.label}</span>
                   </div>
                   {item.badge && (
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${isActive ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : item.badgeColor}`}>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${isActive ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold' : item.badgeColor}`}>
                       {item.badge}
                     </span>
                   )}
@@ -181,14 +209,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Officer KYC / Session Footer */}
-      <div className="p-4 bg-[#0a0c0f] border-t border-zinc-800/50">
-        <div className="flex items-center gap-3 mb-2.5">
-          <div className="w-9 h-9 rounded-full border-2 border-emerald-500 overflow-hidden bg-zinc-800 shrink-0">
+      {/* Officer KYC / Sovereign Session Footer */}
+      <div className="p-3.5 bg-[#030d1c] border-t border-blue-900/60">
+        <div className="flex items-center gap-2.5 mb-2">
+          <div className="w-8 h-8 rounded-full border-2 border-amber-400 overflow-hidden bg-blue-950 shrink-0 shadow-sm">
             {currentOfficer?.avatarUrl ? (
               <img src={currentOfficer.avatarUrl} alt={currentOfficer.name} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-zinc-500">
+              <div className="w-full h-full flex items-center justify-center text-slate-500">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               </div>
             )}
@@ -197,16 +225,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="text-xs font-bold text-white truncate">
               {currentOfficer?.name || 'Arul Selvam'}
             </div>
-            <div className="text-[10px] text-emerald-400 font-mono tracking-tighter flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              KYC VERIFIED
+            <div className="text-[10px] text-emerald-400 font-mono tracking-tight flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 text-emerald-400" />
+              <span>GOVT KYC VERIFIED</span>
             </div>
           </div>
         </div>
         
-        <div className="text-[9px] text-zinc-600 font-mono flex justify-between pt-1 border-t border-zinc-800/40">
-          <span>IP: 10.12.94.1</span>
-          <span>STATION: {currentOfficer?.stationCode || 'TN-CHN-01'}</span>
+        <div className="text-[9px] text-slate-400 font-mono flex justify-between pt-1.5 border-t border-blue-950">
+          <span className="text-amber-300/90 font-semibold">CCTNS NODE: LIVE</span>
+          <span>{currentOfficer?.stationCode || 'TN-CHN-01'}</span>
         </div>
       </div>
     </div>
@@ -215,7 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden md:flex w-64 bg-[#08090b] border-r border-zinc-800/50 flex-col justify-between shrink-0 select-none">
+      <aside className="hidden md:flex w-64 bg-[#051429] border-r border-blue-900/60 flex-col justify-between shrink-0 select-none shadow-md">
         {renderContent(false)}
       </aside>
 
@@ -229,7 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Mobile Slide-Over Drawer */}
       <div 
-        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-[#08090b] border-r border-zinc-800 shadow-2xl flex flex-col justify-between select-none transform transition-transform duration-200 ease-in-out md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-[#051429] border-r border-blue-900 shadow-2xl flex flex-col justify-between select-none transform transition-transform duration-200 ease-in-out md:hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

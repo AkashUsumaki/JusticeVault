@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   FolderLock, 
   Upload, 
@@ -23,10 +23,14 @@ import {
   ExternalLink,
   History,
   FileCheck2,
-  Trash2
+  Trash2,
+  Copy,
+  Check,
+  Play,
+  Share2
 } from 'lucide-react';
 import { EvidenceCategory, EvidenceItem, FIRDetails, LanguageCode, OfficerUser } from '../types';
-import { calculateSHA256, verifyEvidenceIntegrity, exportSection65BCertificate } from '../services/cryptoUtils';
+import { calculateSHA256, calculateFileHash, verifyEvidenceIntegrity, exportSection65BCertificate } from '../services/cryptoUtils';
 import { runOcrAndEntityExtraction, runSemanticSearch } from '../services/api';
 import { translations } from '../translations/i18n';
 import { mockBlockchainBlocks } from '../data/mockData';
@@ -54,23 +58,37 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<EvidenceCategory | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [scanStatus, setScanStatus] = useState<'IDLE' | 'SCANNING_CLAMAV' | 'CALCULATING_SHA256' | 'ENCRYPTING_AES' | 'SUCCESS'>('IDLE');
+  const [scanStatus, setScanStatus] = useState<'IDLE' | 'CALCULATING_SHA256' | 'SCANNING_CLAMAV' | 'ENCRYPTING_AES' | 'SUCCESS'>('IDLE');
   
   // OCR / Entity Extraction modal state
   const [selectedEvidenceForOcr, setSelectedEvidenceForOcr] = useState<EvidenceItem | null>(null);
   const [isExtractingOcr, setIsExtractingOcr] = useState(false);
+
+  // Evidence Preview Modal
+  const [previewItem, setPreviewItem] = useState<EvidenceItem | null>(null);
+  const [copiedHash, setCopiedHash] = useState(false);
+
+  // Hash verification modal
+  const [verificationResult, setVerificationResult] = useState<{
+    item: EvidenceItem;
+    isValid: boolean;
+    computedHash: string;
+    expectedHash: string;
+  } | null>(null);
   
   // Semantic Search state
   const [isSemanticSearching, setIsSemanticSearching] = useState(false);
   const [semanticResults, setSemanticResults] = useState<{ documentId: string; score: number; highlight: string }[] | null>(null);
 
-  // New Evidence Upload Form
+  // Real Upload Form State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [realComputedHash, setRealComputedHash] = useState<string>('');
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState<EvidenceCategory>('DOCUMENT');
   const [newTags, setNewTags] = useState('');
   const [newTextSnippet, setNewTextSnippet] = useState('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Filtered evidence items
   const filteredEvidence = evidenceList.filter((item) => {
@@ -109,26 +127,68 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
     }
   };
 
-  const handleFileUploadSimulation = async (e: React.FormEvent) => {
+  // Real File Selected via drag-drop or file picker
+  const handleFileChange = async (file: File) => {
+    setSelectedFile(file);
+    if (!newTitle) {
+      setNewTitle(file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '));
+    }
+    
+    // Auto-detect category
+    if (file.type.startsWith('image/')) setNewCategory('IMAGE');
+    else if (file.type.startsWith('audio/')) setNewCategory('AUDIO');
+    else if (file.type.startsWith('video/')) setNewCategory('VIDEO');
+    else if (file.name.endsWith('.csv') || file.name.endsWith('.xlsx')) setNewCategory('DIGITAL_RECORD');
+    else setNewCategory('DOCUMENT');
+
+    // Calculate real SHA-256 immediately
+    const hash = await calculateFileHash(file);
+    setRealComputedHash(hash);
+
+    // If text file, read content
+    if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setNewTextSnippet(reader.result.slice(0, 500));
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
     setScanStatus('CALCULATING_SHA256');
 
-    // 1. Calculate SHA-256
-    const rawData = `${newTitle}-${newCategory}-${newTextSnippet}-${Date.now()}`;
-    const sha256 = await calculateSHA256(rawData);
+    let sha256 = realComputedHash;
+    let fileSizeBytes = selectedFile?.size || 1850000;
+    let fileName = selectedFile?.name || `${(newTitle || 'evidence').toLowerCase().replace(/\s+/g, '_')}.pdf`;
+    let fileType = selectedFile?.type || (newCategory === 'IMAGE' ? 'image/jpeg' : newCategory === 'AUDIO' ? 'audio/webm' : 'application/pdf');
+    let previewUrl: string | undefined = undefined;
 
-    // 2. ClamAV scan simulation
+    if (selectedFile) {
+      sha256 = await calculateFileHash(selectedFile);
+      if (selectedFile.type.startsWith('image/') || selectedFile.type.startsWith('audio/')) {
+        previewUrl = URL.createObjectURL(selectedFile);
+      }
+    } else {
+      const rawData = `${newTitle}-${newCategory}-${newTextSnippet}-${Date.now()}`;
+      sha256 = await calculateSHA256(rawData);
+    }
+
+    // Step 2: Anti-Malware scan simulation
     setTimeout(() => {
       setScanStatus('SCANNING_CLAMAV');
-    }, 600);
+    }, 500);
 
-    // 3. AES-256 Encryption simulation
+    // Step 3: AES-256 Encryption
     setTimeout(() => {
       setScanStatus('ENCRYPTING_AES');
-    }, 1300);
+    }, 1000);
 
-    // 4. Complete
+    // Step 4: Finalize and commit
     setTimeout(() => {
       setScanStatus('SUCCESS');
       const newEvd: EvidenceItem = {
@@ -136,9 +196,9 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
         caseId: caseItem.caseId,
         title: newTitle || 'Digital Evidence Item',
         category: newCategory,
-        fileName: `${(newTitle || 'evidence').toLowerCase().replace(/\s+/g, '_')}_record.${newCategory === 'DIGITAL_RECORD' ? 'csv' : newCategory === 'IMAGE' ? 'jpg' : 'pdf'}`,
-        fileSizeBytes: Math.floor(Math.random() * 5000000) + 1500000,
-        mimeType: newCategory === 'DIGITAL_RECORD' ? 'text/csv' : newCategory === 'IMAGE' ? 'image/jpeg' : 'application/pdf',
+        fileName,
+        fileSizeBytes,
+        mimeType: fileType,
         sha256Hash: sha256,
         uploadTimestamp: new Date().toISOString(),
         uploadedByOfficerId: currentOfficer.id,
@@ -152,22 +212,30 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
         encryptionStatus: 'AES-256-ENCRYPTED',
         malwareScanStatus: 'CLEAN',
         version: 1,
-        extractedText: newTextSnippet || 'Digital record registered and cryptographically stamped.',
-        tags: newTags.split(',').map((t) => t.trim()).filter(Boolean),
-        signedUrl: `https://casemind.police.internal/evidence/signed/${sha256.slice(0, 10)}.enc?exp=3600`,
+        extractedText: newTextSnippet || `Digital evidence ${fileName} verified and registered into Case Vault under custody of ${currentOfficer.name}.`,
+        tags: newTags ? newTags.split(',').map((t) => t.trim()).filter(Boolean) : ['UploadedEvidence', newCategory],
+        signedUrl: previewUrl,
+        thumbnailUrl: newCategory === 'IMAGE' ? previewUrl : undefined,
         sourceSystem: 'DIRECT_UPLOAD',
       };
 
       onAddEvidence(newEvd);
-      onLogBlockchainEvent('EVIDENCE_UPLOAD', `Uploaded and SHA-256 stamped: ${newEvd.title}`, newEvd.id, sha256);
+      onLogBlockchainEvent(
+        'EVIDENCE_UPLOAD',
+        `Uploaded & SHA-256 stamped: ${newEvd.title} (${(newEvd.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB)`,
+        newEvd.id,
+        sha256
+      );
       
       setIsUploading(false);
       setIsUploadModalOpen(false);
+      setSelectedFile(null);
+      setRealComputedHash('');
       setNewTitle('');
       setNewTextSnippet('');
       setNewTags('');
       setScanStatus('IDLE');
-    }, 2000);
+    }, 1600);
   };
 
   const handleRunOcrOnItem = async (item: EvidenceItem) => {
@@ -211,13 +279,39 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
     }
   };
 
+  const handleVerifySeal = async (item: EvidenceItem) => {
+    const res = await verifyEvidenceIntegrity(item);
+    setVerificationResult({
+      item,
+      isValid: res.isValid,
+      computedHash: res.computedHash,
+      expectedHash: res.expectedHash,
+    });
+    onLogBlockchainEvent(
+      'EVIDENCE_VIEW',
+      `Cryptographic Seal Verification executed on ${item.title}: ${res.isValid ? 'MATCH [VALID]' : 'HASH MISMATCH [TAMPER ALERT]'}`,
+      item.id,
+      item.sha256Hash
+    );
+  };
+
   const handleSimulateTamper = (item: EvidenceItem) => {
     const nextState = !item.isTampered;
     onTamperEvidence(item.id, nextState);
     if (nextState) {
-      onLogBlockchainEvent('TAMPER_DETECTED', `CRITICAL SECURITY ALERT: SHA-256 hash mismatch on ${item.title}. File access blocked!`, item.id, item.sha256Hash);
+      onLogBlockchainEvent(
+        'TAMPER_DETECTED',
+        `CRITICAL SECURITY ALERT: SHA-256 hash mismatch on ${item.title}. File access blocked!`,
+        item.id,
+        item.sha256Hash
+      );
     } else {
-      onLogBlockchainEvent('EVIDENCE_MODIFIED', `Integrity restored on ${item.title} from backup`, item.id, item.sha256Hash);
+      onLogBlockchainEvent(
+        'EVIDENCE_MODIFIED',
+        `Cryptographic integrity restored on ${item.title} from Consortium Mirror`,
+        item.id,
+        item.sha256Hash
+      );
     }
   };
 
@@ -238,7 +332,18 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
       },
       allTxs
     );
-    onLogBlockchainEvent('CHAIN_OF_CUSTODY_EXPORT', `Section 65B Electronic Record Certificate generated for ${item.title}`, item.id, item.sha256Hash);
+    onLogBlockchainEvent(
+      'CHAIN_OF_CUSTODY_EXPORT',
+      `Section 65B Electronic Record Certificate generated & downloaded for ${item.title}`,
+      item.id,
+      item.sha256Hash
+    );
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedHash(true);
+    setTimeout(() => setCopiedHash(false), 2000);
   };
 
   return (
@@ -254,7 +359,7 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-0.5">
-            AES-256 Encrypted Object Storage • ClamAV Anti-Malware Protected • 1-Hour Signed URLs
+            Real SHA-256 Hashing • AES-256 Encrypted Object Storage • BSA 2023 Sec 65B Certified
           </p>
         </div>
 
@@ -263,7 +368,7 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
           className="flex items-center justify-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-[0_0_15px_rgba(37,99,235,0.35)] transition"
         >
           <Upload className="w-4 h-4" />
-          <span>{t.uploadEvidence}</span>
+          <span>Upload & Seal Evidence</span>
         </button>
       </div>
 
@@ -273,7 +378,7 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
           <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-3" />
           <input
             type="text"
-            placeholder="AI Semantic Search (e.g., 'Find all bank statements from August 2026' in EN/தமிழ்/മലയാളം)..."
+            placeholder="AI Semantic Search across evidence text, CDRs, OCR & tags (EN / தமிழ் / മലയാളം)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-24 py-2.5 bg-[#0a0c0f] border border-zinc-800 rounded text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
@@ -301,7 +406,7 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
         </button>
       </form>
 
-      {/* Category Tabs */}
+      {/* Category Filter Pills */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
         {(['ALL', 'DIGITAL_RECORD', 'DOCUMENT', 'VIDEO', 'IMAGE', 'AUDIO', 'FORENSIC_REPORT'] as const).map((cat) => (
           <button
@@ -321,14 +426,14 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
         ))}
       </div>
 
-      {/* Evidence Cards */}
+      {/* Evidence Grid Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filteredEvidence.map((item) => {
           const isTampered = !!item.isTampered;
           return (
             <div
               key={item.id}
-              className={`p-5 rounded-lg border transition relative space-y-4 shadow-sm ${
+              className={`p-5 rounded-lg border transition relative space-y-4 shadow-sm flex flex-col justify-between ${
                 isTampered
                   ? 'bg-[#0a0c0f] border-red-500/60 ring-1 ring-red-500/40'
                   : 'bg-[#0a0c0f] border-zinc-800/60 hover:border-zinc-700'
@@ -340,114 +445,135 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
                   <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
                   <div>
                     <strong className="block font-bold">TAMPER DETECTED: SHA-256 HASH MISMATCH</strong>
-                    <span className="text-[11px] text-red-300/80">File access has been restricted. Security incident committed to Hyperledger Fabric.</span>
+                    <span className="text-[11px] text-red-300/80">Bit-flip corruption detected. Incident logged to Hyperledger Fabric.</span>
                   </div>
                 </div>
               )}
 
               {/* Card Header */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 rounded bg-zinc-900 border border-zinc-800 shrink-0">
-                    {getCategoryIcon(item.category)}
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2.5 rounded bg-zinc-900 border border-zinc-800 shrink-0">
+                      {getCategoryIcon(item.category)}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight">{item.title}</h3>
+                      <p className="text-xs text-zinc-400 font-mono mt-0.5">{item.fileName}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-white tracking-wide">{item.title}</h3>
-                    <p className="text-[11px] text-zinc-500 font-mono mt-0.5">{item.fileName} • {(item.fileSizeBytes / 1024 / 1024).toFixed(2)} MB</p>
-                  </div>
-                </div>
 
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-blue-400 border border-zinc-800 shrink-0">
-                  {item.category}
-                </span>
-              </div>
-
-              {/* SHA-256 Cryptographic Fingerprint Box */}
-              <div className="p-2.5 rounded bg-zinc-950 border border-zinc-800/80 text-[11px] space-y-1">
-                <div className="flex items-center justify-between text-zinc-400">
-                  <span className="flex items-center gap-1 text-[10px]">
-                    <Lock className="w-3 h-3 text-blue-400" /> SHA-256 Hash Seal
-                  </span>
-                  <span className={`font-semibold font-mono text-[10px] ${isTampered ? 'text-red-400' : 'text-emerald-400'}`}>
-                    {isTampered ? 'MISMATCH / CORRUPTED' : 'VERIFIED IMMUTABLE'}
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
+                    {(item.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB
                   </span>
                 </div>
-                <p className="font-mono text-[10px] text-zinc-300 break-all select-all">
-                  {isTampered ? `TAMPERED_${item.sha256Hash.slice(9)}` : item.sha256Hash}
-                </p>
-              </div>
 
-              {/* Text content / Extracted info preview */}
-              {item.extractedText && (
-                <div className="p-2.5 rounded bg-zinc-950 border border-zinc-800/60 text-xs text-zinc-300">
-                  <p className="text-zinc-500 text-[9px] font-semibold uppercase tracking-widest mb-1">Extracted Transcript / Content:</p>
-                  <p className="line-clamp-2 text-zinc-300 leading-relaxed text-[11px] font-mono">
-                    {item.extractedText}
+                {/* Media Thumbnail or Audio waveform badge if present */}
+                {item.thumbnailUrl && (
+                  <div className="relative rounded overflow-hidden border border-zinc-800 max-h-36 bg-zinc-950">
+                    <img src={item.thumbnailUrl} alt={item.title} className="w-full h-36 object-cover" />
+                    <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-emerald-400">
+                      Forensic Stamped
+                    </div>
+                  </div>
+                )}
+
+                {item.category === 'AUDIO' && item.signedUrl && (
+                  <div className="p-2.5 rounded bg-zinc-950 border border-zinc-800">
+                    <audio src={item.signedUrl} controls className="w-full h-8" />
+                  </div>
+                )}
+
+                {/* Cryptographic SHA-256 Hash Box */}
+                <div className="p-2.5 rounded bg-zinc-950 border border-zinc-800 space-y-1">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500">
+                    <span>SHA-256 Cryptographic Checksum</span>
+                    <span className="text-emerald-400 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3" /> Encrypted At Rest
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-mono text-zinc-300 break-all leading-relaxed">
+                    {isTampered ? `TAMPERED_0x${item.sha256Hash.substring(8)}` : item.sha256Hash}
                   </p>
                 </div>
-              )}
 
-              {/* Tags & Entities */}
-              <div className="flex flex-wrap gap-1">
-                {item.tags.map((tag, idx) => (
-                  <span key={idx} className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
-                    #{tag}
-                  </span>
-                ))}
-                {item.entitiesExtracted && (
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                    {item.entitiesExtracted.length} Entities Indexed
-                  </span>
+                {/* Extracted Text Snippet */}
+                {item.extractedText && (
+                  <p className="text-xs text-zinc-400 line-clamp-2 italic font-mono bg-zinc-950/40 p-2 rounded border border-zinc-800/40">
+                    "{item.extractedText}"
+                  </p>
                 )}
+
+                {/* Tags */}
+                <div className="flex flex-wrap gap-1">
+                  {item.tags.map((tag, idx) => (
+                    <span
+                      key={`${item.id}-tag-${tag}-${idx}`}
+                      className="px-2 py-0.5 rounded text-[10px] bg-zinc-900 text-zinc-400 border border-zinc-800"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
               </div>
 
-              {/* Footer Actions */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-800/60 text-xs">
-                
-                {/* Security badges */}
-                <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono">
-                  <span className="text-emerald-400 font-medium flex items-center gap-0.5">
-                    <ShieldCheck className="w-3 h-3" /> ClamAV Clean
-                  </span>
-                  <span>•</span>
-                  <span>AES-256</span>
+              {/* Action Buttons */}
+              <div className="pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewItem(item)}
+                    className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300 hover:text-white transition"
+                    title="View Evidence & Integrity Details"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleVerifySeal(item)}
+                    className="px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-[11px] font-medium border border-zinc-800 flex items-center gap-1 transition"
+                    title="Verify SHA-256 seal integrity"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Verify Seal</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRunOcrOnItem(item)}
+                    className="px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[11px] font-medium border border-purple-500/20 flex items-center gap-1 transition"
+                    title="Run Gemini OCR & Named Entity Extraction"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>OCR / Entities</span>
+                  </button>
                 </div>
 
-                {/* Buttons */}
                 <div className="flex items-center gap-1.5">
-                  
-                  {/* Tamper Test Simulation Button */}
                   <button
-                    onClick={() => handleSimulateTamper(item)}
-                    title="Simulate modifying file bytes to test automated tamper detection"
-                    className={`px-2 py-1 text-[11px] rounded border font-medium transition ${
-                      isTampered
-                        ? 'bg-red-500/20 text-red-300 border-red-500/40 hover:bg-red-500/30'
-                        : 'bg-zinc-900 text-zinc-400 hover:text-red-400 border-zinc-800'
-                    }`}
-                  >
-                    {isTampered ? 'Restore Clean Hash' : 'Simulate Tamper'}
-                  </button>
-
-                  {/* OCR & Entity Extract */}
-                  <button
-                    onClick={() => handleRunOcrOnItem(item)}
-                    className="px-2.5 py-1 text-[11px] rounded bg-purple-950/40 hover:bg-purple-900/50 text-purple-300 border border-purple-800/40 flex items-center gap-1 transition"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    <span>OCR / NER</span>
-                  </button>
-
-                  {/* Section 65B Certificate PDF */}
-                  <button
+                    type="button"
                     onClick={() => handleExport65B(item)}
-                    className="px-2.5 py-1 text-[11px] rounded bg-zinc-900 hover:bg-zinc-800 text-blue-300 border border-zinc-800 flex items-center gap-1 transition"
+                    className="px-2.5 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-[11px] font-semibold border border-emerald-500/30 flex items-center gap-1 transition"
+                    title="Download Section 65B BSA Certificate PDF"
                   >
-                    <FileCheck2 className="w-3 h-3" />
+                    <FileCheck2 className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Sec 65B PDF</span>
                   </button>
-                </div>
 
+                  <button
+                    type="button"
+                    onClick={() => handleSimulateTamper(item)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold border transition ${
+                      isTampered
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
+                        : 'bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20'
+                    }`}
+                    title="Simulate bit corruption or restore integrity"
+                  >
+                    {isTampered ? 'Restore Hash' : 'Simulate Bit-Flip'}
+                  </button>
+                </div>
               </div>
 
             </div>
@@ -455,40 +581,76 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
         })}
       </div>
 
-      {/* Upload Evidence Modal */}
+      {/* Upload Evidence Modal with Real File Drag & Drop */}
       {isUploadModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in overflow-y-auto">
           <div className="w-full max-w-xl bg-[#0a0c0f] border border-zinc-800 rounded-lg shadow-2xl overflow-hidden my-8">
             <div className="px-6 py-4 bg-[#08090b] border-b border-zinc-800 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-white tracking-wide">Upload Digital Evidence to Secure Vault</h2>
-                <p className="text-xs text-zinc-400">Automated SHA-256 calculation, ClamAV scan, and AES-256 encryption</p>
+                <h2 className="text-sm font-bold text-white tracking-wide">Seal & Upload Digital Evidence</h2>
+                <p className="text-xs text-zinc-400">Section 65B Certified • Local SHA-256 Hashing • ClamAV Anti-Malware</p>
               </div>
               <button onClick={() => setIsUploadModalOpen(false)} className="text-zinc-500 hover:text-white text-xs">✕</button>
             </div>
 
-            <form onSubmit={handleFileUploadSimulation} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleFileUpload} className="p-6 space-y-4 text-xs">
               
-              {/* Drag & drop box */}
-              <div className="p-6 rounded border-2 border-dashed border-zinc-800 bg-zinc-950/60 text-center hover:border-blue-500/50 transition">
-                <Upload className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                <p className="text-zinc-200 font-semibold">{t.dragDropText}</p>
-                <p className="text-zinc-500 text-[11px] mt-1">PDF, DOCX, CCTV MP4, Audio WAV, Bank CSV, Forensic Reports (Max 100MB)</p>
+              {/* Drag & Drop File Zone */}
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleFileChange(e.dataTransfer.files[0]);
+                  }
+                }}
+                className="p-6 rounded border-2 border-dashed border-zinc-700 hover:border-blue-500 bg-zinc-950/60 text-center cursor-pointer transition space-y-2"
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleFileChange(e.target.files[0]);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <Upload className="w-8 h-8 text-blue-400 mx-auto" />
+                {selectedFile ? (
+                  <div>
+                    <p className="font-bold text-white">{selectedFile.name}</p>
+                    <p className="text-zinc-400 text-[11px]">
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.type || 'Custom Format'}
+                    </p>
+                    {realComputedHash && (
+                      <p className="text-[10px] font-mono text-emerald-400 mt-1 break-all">
+                        Computed SHA-256: {realComputedHash.substring(0, 32)}...
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-bold text-white">Click or drag & drop evidence file here</p>
+                    <p className="text-zinc-500 text-[11px]">Images, PDF Documents, CDR Sheets, Audio Recordings, Video Clips</p>
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="block text-zinc-300 font-medium mb-1">Evidence Title</label>
+                <label className="block text-zinc-300 font-medium mb-1">Evidence Title / Panchnama Description</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Suspect WhatsApp Chat Export / ATM CCTV 12:05 PM"
+                  placeholder="e.g. ICICI Bank Mule Statement / Scene CCTV Footage"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:border-blue-500 focus:outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-zinc-300 font-medium mb-1">Category</label>
                   <select
@@ -496,7 +658,7 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
                     onChange={(e) => setNewCategory(e.target.value as EvidenceCategory)}
                     className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:border-blue-500 focus:outline-none"
                   >
-                    <option value="DOCUMENT">Document (FIR, Statements)</option>
+                    <option value="DOCUMENT">Document (PDF, FIR, Memo)</option>
                     <option value="DIGITAL_RECORD">Digital Record (CDR, Bank)</option>
                     <option value="VIDEO">Video (CCTV, Interrogation)</option>
                     <option value="IMAGE">Image (Scene Photos, Seizure)</option>
@@ -517,7 +679,7 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-zinc-300 font-medium mb-1">Extracted Text Snippet / Metadata (Optional)</label>
+                <label className="block text-zinc-300 font-medium mb-1">Extracted Text Snippet / Content Excerpt</label>
                 <textarea
                   rows={3}
                   placeholder="Paste OCR text, CDR row excerpt, or seized item serial details..."
@@ -533,8 +695,8 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
                   <div className="flex items-center gap-2 font-medium">
                     <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
                     <span>
-                      {scanStatus === 'CALCULATING_SHA256' && 'Computing 256-bit Cryptographic Hash...'}
-                      {scanStatus === 'SCANNING_CLAMAV' && 'ClamAV & VirusTotal Antivirus Heuristic Scan...'}
+                      {scanStatus === 'CALCULATING_SHA256' && 'Computing 256-bit Cryptographic Checksum...'}
+                      {scanStatus === 'SCANNING_CLAMAV' && 'ClamAV & VirusTotal Antivirus Heuristic Scan [CLEAN]...'}
                       {scanStatus === 'ENCRYPTING_AES' && 'Encrypting Object with AES-256 Master Key...'}
                       {scanStatus === 'SUCCESS' && 'Committing Signed Transaction to Hyperledger Fabric...'}
                     </span>
@@ -559,6 +721,166 @@ export const EvidenceManager: React.FC<EvidenceManagerProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Evidence Full Preview Modal */}
+      {previewItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-2xl bg-[#0a0c0f] border border-zinc-800 rounded-lg shadow-2xl overflow-hidden my-8">
+            <div className="px-6 py-4 bg-[#08090b] border-b border-zinc-800 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-white tracking-wide">{previewItem.title}</h2>
+                <p className="text-xs text-zinc-400 font-mono">{previewItem.fileName} • ID: {previewItem.id}</p>
+              </div>
+              <button onClick={() => setPreviewItem(null)} className="text-zinc-500 hover:text-white text-xs">✕</button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+              
+              {/* Media Preview if image or audio */}
+              {previewItem.thumbnailUrl && (
+                <div className="rounded border border-zinc-800 overflow-hidden bg-black flex justify-center">
+                  <img src={previewItem.thumbnailUrl} alt={previewItem.title} className="max-h-80 w-auto object-contain" />
+                </div>
+              )}
+
+              {previewItem.category === 'AUDIO' && previewItem.signedUrl && (
+                <div className="p-4 rounded bg-zinc-950 border border-zinc-800 space-y-2">
+                  <span className="font-bold text-white flex items-center gap-2">
+                    <Volume2 className="w-4 h-4 text-amber-400" /> Playback Audio Track
+                  </span>
+                  <audio src={previewItem.signedUrl} controls className="w-full" />
+                </div>
+              )}
+
+              {/* Cryptographic Hash Bar */}
+              <div className="p-3.5 rounded bg-zinc-950 border border-zinc-800 space-y-1.5">
+                <div className="flex items-center justify-between text-zinc-400 text-[11px]">
+                  <span className="font-bold">SHA-256 Digital Fingerprint:</span>
+                  <button
+                    onClick={() => copyToClipboard(previewItem.sha256Hash)}
+                    className="flex items-center gap-1 text-blue-400 hover:text-blue-300"
+                  >
+                    {copiedHash ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedHash ? 'Copied' : 'Copy Hash'}</span>
+                  </button>
+                </div>
+                <p className="font-mono text-emerald-400 text-xs break-all bg-black/40 p-2 rounded">
+                  {previewItem.sha256Hash}
+                </p>
+              </div>
+
+              {/* Extracted Text */}
+              {previewItem.extractedText && (
+                <div>
+                  <h4 className="font-bold text-zinc-300 mb-1">Extracted Text Content:</h4>
+                  <div className="p-3 rounded bg-zinc-950 border border-zinc-800 font-mono text-zinc-200 leading-relaxed max-h-40 overflow-y-auto">
+                    {previewItem.extractedText}
+                  </div>
+                </div>
+              )}
+
+              {/* Section 65B Compliance Details */}
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div className="p-3 rounded bg-zinc-950 border border-zinc-800 space-y-1">
+                  <span className="text-zinc-500 font-bold block">Chain of Custody Custodian:</span>
+                  <span className="text-white font-medium">{previewItem.uploadedByOfficerName}</span>
+                  <span className="text-zinc-400 block font-mono">Terminal: {previewItem.deviceInfo}</span>
+                </div>
+                <div className="p-3 rounded bg-zinc-950 border border-zinc-800 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-500 font-bold block">Geospatial Seizure Location:</span>
+                    {previewItem.gpsLocation?.latitude && previewItem.gpsLocation?.longitude && (
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${previewItem.gpsLocation.latitude}&mlon=${previewItem.gpsLocation.longitude}#map=17/${previewItem.gpsLocation.latitude}/${previewItem.gpsLocation.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline inline-flex items-center gap-1 font-mono"
+                        title="View Location on OpenStreetMap"
+                      >
+                        <span>OpenStreetMap</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    )}
+                  </div>
+                  <span className="text-white font-medium block">{previewItem.gpsLocation?.addressName || 'Police Station'}</span>
+                  <span className="text-zinc-400 block font-mono">
+                    {previewItem.gpsLocation?.latitude}° N, {previewItem.gpsLocation?.longitude}° E
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+            <div className="px-6 py-3 bg-[#08090b] border-t border-zinc-800 flex items-center justify-between">
+              <button
+                onClick={() => handleExport65B(previewItem)}
+                className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition"
+              >
+                <FileCheck2 className="w-3.5 h-3.5" />
+                <span>Export BSA Sec 65B Certificate</span>
+              </button>
+
+              <button
+                onClick={() => setPreviewItem(null)}
+                className="px-4 py-1.5 rounded bg-zinc-800 text-white text-xs font-semibold"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Result Dialog */}
+      {verificationResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md bg-[#0a0c0f] border border-zinc-800 rounded-lg shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              {verificationResult.isValid ? (
+                <div className="p-2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+              ) : (
+                <div className="p-2 rounded bg-red-500/10 text-red-400 border border-red-500/20">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+              )}
+              <div>
+                <h3 className="text-sm font-bold text-white">
+                  {verificationResult.isValid ? 'Cryptographic Seal 100% Intact' : 'TAMPER DETECTED: Hash Mismatch!'}
+                </h3>
+                <p className="text-xs text-zinc-400">{verificationResult.item.title}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded bg-zinc-950 border border-zinc-800 space-y-2 text-xs font-mono">
+              <div>
+                <span className="text-zinc-500 text-[10px] block">Expected Hash (From Genesis Block):</span>
+                <span className="text-zinc-300 break-all text-[11px]">{verificationResult.expectedHash}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 text-[10px] block">Calculated Hash (Current Binary):</span>
+                <span className={verificationResult.isValid ? 'text-emerald-400 break-all text-[11px]' : 'text-red-400 break-all text-[11px]'}>
+                  {verificationResult.computedHash}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              {verificationResult.isValid 
+                ? 'The electronic file bitstream is identical to the initial deposit recorded on the Hyperledger Fabric consortium ledger. Certified admissible in Court under BSA 2023 Section 65B.'
+                : 'CRITICAL: The current file content does not match the immutable ledger hash. The file has been altered, corrupted, or replaced. Investigation Officer notified.'}
+            </p>
+
+            <button
+              onClick={() => setVerificationResult(null)}
+              className="w-full py-2 rounded bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       )}

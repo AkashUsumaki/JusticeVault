@@ -1,6 +1,6 @@
 export type UserRole = 'INVESTIGATION_OFFICER' | 'STATION_SUPERVISOR' | 'PUBLIC_PROSECUTOR' | 'DEPARTMENT_ADMIN';
 
-export type LanguageCode = 'en' | 'ta' | 'ml';
+export type LanguageCode = 'en' | 'ta' | 'ml' | 'hi';
 
 export type ClearanceLevel = 'LEVEL_1_GENERAL' | 'LEVEL_2_SENSITIVE' | 'LEVEL_3_CONFIDENTIAL';
 
@@ -206,15 +206,91 @@ export interface BlockchainTransaction {
   status?: 'COMMITTED' | 'VERIFIED' | 'TAMPER_FLAGGED';
 }
 
+export type NavTab = 
+  | 'DASHBOARD'
+  | 'CASES'
+  | 'EVIDENCE'
+  | 'VICTIM_ENQUIRY'
+  | 'MAP_LOCATIONS'
+  | 'AI_VERIFIER'
+  | 'RELATIONSHIPS'
+  | 'BLOCKCHAIN'
+  | 'SHARING'
+  | 'INTEGRATIONS'
+  | 'FIELD_CAPTURE'
+  | 'LEGAL';
+
+export interface DatabaseStats {
+  databaseEngine: string;
+  version: string;
+  cipher: string;
+  storagePath: string;
+  evidenceFilesDir: string;
+  totalEvidenceStored: number;
+  totalCases: number;
+  totalVictimEnquiries: number;
+  totalEncryptedBytes: number;
+  tamperedAlertCount: number;
+  lastIntegrityCheck: string;
+}
+
+export interface VictimClaimComparison {
+  claimId: string;
+  statementSnippet: string;
+  topic: 'TIMELINE' | 'LOCATION' | 'SUSPECT_ID' | 'VEHICLE' | 'MONEY' | 'PHYSICAL_ASSAULT' | 'OTHER';
+  verdict: 'CORROBORATED' | 'CONTRADICTED' | 'NEW_LEAD' | 'UNVERIFIED';
+  confidence: number;
+  reasoning: string;
+  matchingEvidence: {
+    evidenceId: string;
+    evidenceTitle: string;
+    evidenceCategory: string;
+    relevanceNote: string;
+    exactMatchSnippet?: string;
+  }[];
+}
+
+export interface VictimEnquiryComparison {
+  overallCredibilityScore: number;
+  summary: string;
+  claimsCount: number;
+  corroboratedCount: number;
+  contradictedCount: number;
+  newLeadsCount: number;
+  claims: VictimClaimComparison[];
+  immediateInvestigativeActions: string[];
+}
+
+export interface VictimEnquiryRecord {
+  id: string;
+  caseId: string;
+  victimName: string;
+  victimContact?: string;
+  incidentLocation?: string;
+  gpsCoordinates?: { lat: number; lng: number };
+  enquiryDate: string;
+  audioDurationSeconds?: number;
+  hasAudioRecording: boolean;
+  audioFileName?: string;
+  transcriptText: string;
+  language: 'en' | 'ta' | 'ml' | 'hi';
+  officerId: string;
+  officerName: string;
+  comparisonResult?: VictimEnquiryComparison;
+  status: 'PENDING_ANALYSIS' | 'ANALYZED' | 'CORROBORATED' | 'CONTRADICTIONS_FOUND';
+  timestamp: string;
+}
+
 export interface BlockchainBlock {
   blockNumber: number;
   blockHash: string;
+  currentHash?: string;
   previousHash: string;
   merkleRoot: string;
   timestamp: string;
-  transactionsCount: number;
-  channelId: string;
-  organization: string;
+  transactionsCount?: number;
+  channelId?: string;
+  organization?: string;
   transactions: BlockchainTransaction[];
 }
 
@@ -249,7 +325,9 @@ export type InterStationShareRequest = CaseSharingRecord;
 export interface EntityNode {
   id: string;
   label: string;
+  subLabel?: string;
   type: 'PERSON' | 'PHONE' | 'BANK_ACCOUNT' | 'VEHICLE' | 'LOCATION' | 'EVIDENCE_ITEM' | string;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
   metadata?: Record<string, any>;
 }
 
@@ -260,6 +338,8 @@ export interface RelationshipEdge {
   relationshipType: string;
   description: string;
   evidenceSourceId?: string;
+  confidenceScore?: number;
+  verifiedByOfficer?: string;
 }
 
 export interface RelationshipNode {

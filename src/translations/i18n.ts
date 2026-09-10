@@ -16,6 +16,8 @@ export interface TranslationDictionary {
   navDashboard: string;
   navCases: string;
   navEvidence: string;
+  navVictimEnquiry: string;
+  navMapLocations: string;
   navAIVerifier: string;
   navRelations: string;
   navBlockchain: string;
@@ -113,8 +115,8 @@ export interface TranslationDictionary {
 
 export const translations: Record<LanguageCode, TranslationDictionary> = {
   en: {
-    appName: "JusticeVault",
-    appSubtitle: "Digital Evidence Management & Investigation Intelligence Platform",
+    appName: "न्याय-साक्ष्य (JusticeVault)",
+    appSubtitle: "Government of India • Ministry of Home Affairs • Digital Evidence & Criminal Intelligence Platform",
     badgeId: "Badge ID",
     policeStation: "Police Station",
     role: "Officer Role",
@@ -126,7 +128,9 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     
     navDashboard: "Command Center",
     navCases: "FIR & Cases",
-    navEvidence: "Evidence Vault",
+    navEvidence: "Evidence Vault (DB)",
+    navVictimEnquiry: "Victim Voice Enquiry",
+    navMapLocations: "OpenStreetMap Radar",
     navAIVerifier: "AI Statement Verifier",
     navRelations: "Entity & Timeline Graph",
     navBlockchain: "Blockchain & Chain of Custody",
@@ -228,7 +232,9 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     
     navDashboard: "கட்டளை மையம்",
     navCases: "முதல் தகவல் அறிக்கை (FIR)",
-    navEvidence: "டிஜிட்டல் சான்று பெட்டகம்",
+    navEvidence: "சான்று பெட்டகம் (DB)",
+    navVictimEnquiry: "பாதிக்கப்பட்டவர் குரல் விசாரணை",
+    navMapLocations: "ஓபன்ஸ்ட்ரீட்மேப் வரைபடம்",
     navAIVerifier: "AI வாக்குமூல சரிபார்ப்பு",
     navRelations: "தொடர்பு & காலவரிசை வரைபடம்",
     navBlockchain: "பிளாக்செயின் & சான்று சங்கிலி",
@@ -330,7 +336,9 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     
     navDashboard: "കമാൻഡ് സെന്റർ",
     navCases: "എഫ്‌ഐആറും കേസുകളും",
-    navEvidence: "ഡിജിറ്റൽ തെളിവ് ശേഖരം",
+    navEvidence: "തെളിവ് ശേഖരം (DB)",
+    navVictimEnquiry: "ഇരയുടെ ശബ്ദ മൊഴി രേഖപ്പെടുത്തൽ",
+    navMapLocations: "ഓപ്പൺസ്ട്രീറ്റ്മാപ്പ് റഡാർ",
     navAIVerifier: "AI മൊഴി പരിശോധന",
     navRelations: "ബന്ധങ്ങളും സമയക്രമ ഗ്രാഫും",
     navBlockchain: "ബ്ലോക്ക്ചെയിനും കസ്റ്റഡി ശൃംഖലയും",
@@ -416,5 +424,108 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     cctnsTitle: "CCTNS ക്രൈം & ക്രിമിനൽ ട്രാക്കിംഗ് നെറ്റ്‌വർക്ക്",
     eSakshyaTitle: "eSakshya ഡിജിറ്റൽ തെളിവ് (SID പാക്കറ്റ്)",
     cyber1930Title: "1930 ദേശീയ സൈബർ ക്രൈം ഹെൽപ്പ്‌ലൈൻ"
+  },
+  hi: {
+    appName: "न्याय-साक्ष्य (JusticeVault)",
+    appSubtitle: "भारत सरकार • गृह मंत्रालय • डिजिटल साक्ष्य प्रबंधन एवं अन्वेषण आसूचना पोर्टल",
+    badgeId: "बैज संख्या",
+    policeStation: "थाना / पुलिस स्टेशन",
+    role: "अधिकारी पद",
+    clearance: "सुरक्षा स्तर",
+    sessionTimeout: "सत्र समय समाप्ति",
+    extendSession: "सत्र बढ़ाएं",
+    logout: "सुरक्षित लॉगआउट",
+    switchOfficer: "अधिकारी पद बदलें",
+    
+    navDashboard: "कमांड सेंटर (डैशबोर्ड)",
+    navCases: "प्रथम सूचना रिपोर्ट (FIR)",
+    navEvidence: "साक्ष्य तिजोरी (डेटाबेस)",
+    navVictimEnquiry: "पीड़ित आवाज पूछताछ",
+    navMapLocations: "ओपनस्ट्रीटमैप रडार",
+    navAIVerifier: "AI बयान सत्यापन",
+    navRelations: "घटना व संबंध ग्राफ",
+    navBlockchain: "ब्लॉकचेन व कस्टडी शृंखला",
+    navSharing: "अंतर-थाना साक्ष्य साझाकरण",
+    navIntegrations: "पुलिस प्रणाली एकीकरण (CCTNS)",
+    navMobileField: "फील्ड रिकॉर्डिंग (मोबाइल)",
+    
+    loginTitle: "कानून प्रवर्तन पोर्टल लॉगिन",
+    loginSubtitle: "यूआईडीएआई / राज्य पुलिस केवाईसी फेस प्रमाणीकरण एवं 2FA अनिवार्य",
+    kycFaceAuth: "सरकारी केवाईसी फेस प्रमाणीकरण",
+    faceLivenessCheck: "सक्रिय जीवंतता का परीक्षण करें",
+    faceVerified: "चेहरा एवं जीवंतता प्रमाणित",
+    faceScanning: "चेहरा ज्यामिति संरेखण और एम्बेडिंग गणना जारी...",
+    mfaOtp: "मोबाइल OTP सत्यापन",
+    sendOtp: "पंजीकृत मोबाइल पर OTP भेजें",
+    verifyAndLogin: "प्रमाणपत्र सत्यापित कर लॉगिन करें",
+    supervisorApproved: "पर्यवेक्षक अनुमोदित (Vault KMS एन्क्रिप्टेड)",
+    
+    caseDashboard: "केस अन्वेषण डैशबोर्ड",
+    newFIR: "नई प्राथमिकी (FIR) दर्ज करें",
+    firNumber: "प्राथमिकी संख्या (FIR No)",
+    caseId: "प्रणाली केस आईडी",
+    offenceSections: ["BNS / IPC अपराध धाराएं"],
+    statusOpen: "खुला केस",
+    statusInvestigation: "सक्रिय विवेचनाधीन",
+    statusChargesheet: "आरोप पत्र प्रस्तुत",
+    statusClosed: "निस्तारित / न्यायालय द्वारा समाप्त",
+    deadlineAlert: "वैधानिक 90-दिवसीय आरोप पत्र समय सीमा ट्रैकर",
+    daysRemaining: "दिन शेष",
+    evidenceCount: "साक्ष्य सामग्री",
+    complainant: "शिकायतकर्ता विवरण",
+    accused: "अभियुक्त / संदेही",
+    incidentDesc: "घटना सारांश",
+    
+    evidenceVault: "सुरक्षित डिजिटल साक्ष्य तिजोरी",
+    uploadEvidence: "डिजिटल साक्ष्य सुरक्षित जमा करें",
+    dragDropText: "दस्तावेज, सीसीटीवी, कॉल रिकॉर्डिंग, बैंक विवरण खींचें व छोड़ें (अधिकतम 100MB)",
+    sha256Verification: "क्रिप्टोग्राफिक SHA-256 हैश",
+    malwareClean: "ClamAV / VirusTotal एंटीवायरस: सुरक्षित (CLEAN)",
+    encryptedAES: "AES-256 सुरक्षित एन्क्रिप्टेड एवं TLS 1.3 संचार",
+    signedUrlNotice: "समय-सीमित हस्ताक्षरित लिंक (60 मिनट में निष्प्रभावी)",
+    verifyIntegrity: "क्रिप्टोग्राफिक अखंडता का सत्यापन करें",
+    tamperTest: "छेड़छाड़ हमले का परीक्षण (Tamper Alert Test)",
+    tamperDetectedAlert: "चेतावनी: SHA-256 हैश बेमेल पाया गया! पहुंच अवरुद्ध और घटना ब्लॉकचेन पर दर्ज।",
+    versionHistory: "अपरिवर्तनीय संस्करण इतिहास",
+    
+    aiStatementAnalysis: "AI परस्पर साक्ष्य बयान सत्यापन",
+    aiSubtitle: "बयान दावों का स्वतः निष्कर्षण तथा सीडीआर, सीसीटीवी व साक्ष्यों से तुलना",
+    inputStatement: "गवाह अथवा संदेही का बयान दर्ज करें",
+    recordAudio: "ऑडियो बयान रिकॉर्ड करें",
+    analyzeClaims: "साक्ष्यों के साथ दावों का मिलान करें",
+    consistent: "सुसंगत (Consistent)",
+    contradicted: "विरोधाभासी (Contradicted)",
+    unverified: "असत्यापित (Unverified)",
+    requiresReview: "विवेचक समीक्षा अपेक्षित (Review Required)",
+    confidenceScore: "AI विश्वसनीयता सूचकांक",
+    citedSources: "संदर्भित साक्ष्य स्रोत",
+    aiDisclaimer: "वैधानिक अस्वीकरण: AI दोष निर्धारण नहीं करता है। भारतीय साक्ष्य अधिनियम 2023 के तहत विवेचना अधिकारी की समीक्षा हेतु केवल विसंगतियां प्रस्तुत करता है।",
+    
+    blockchainTitle: "हाइपरलेजर फैब्रिक ब्लॉकचेन ऑडिट",
+    hyperledgerInfo: "अधिकृत कानून प्रवर्तन ब्लॉकचेन नेटवर्क",
+    blockExplorer: "ब्लॉक अन्वेषक एवं लेनदेन",
+    immutableLedger: "अपरिवर्तनीय हस्ताक्षरित ऑडिट लेजर",
+    generate65BCertificate: "धारा 65B इलेक्ट्रॉनिक साक्ष्य प्रमाणपत्र (PDF)",
+    verifyChainOfCustody: "संपूर्ण कस्टडी शृंखला सत्यापित करें",
+    txHash: "लेनदेन हैश (Tx Hash)",
+    
+    manualShareTitle: "अंतर-थाना विवेचना अधिकारी साझाकरण",
+    selectStation: "गंतव्य पुलिस स्टेशन चुनें",
+    selectOfficer: "प्राप्तकर्ता अधिकारी चुनें",
+    shareDuration: "पहुंच वैधता अवधि",
+    viewOnly: "केवल देखने की अनुमति",
+    downloadAllowed: "डाउनलोड की अनुमति",
+    revokeShare: "पहुंच तुरंत रद्द करें",
+    
+    fieldCaptureTitle: "फील्ड अधिकारी मोबाइल साक्ष्य संग्रह",
+    gpsWatermark: "जीपीएस व समय अंकित डिजिटल वाटरमार्क",
+    audioConsentGranted: "बयान की सहमति प्राप्त",
+    qrEvidenceTag: "क्यूआर साक्ष्य टैगिंग",
+    offlineQueue: "ऑफलाइन साक्ष्य कतार",
+    syncNow: "केंद्रीय सर्वर से सिंक करें",
+    
+    cctnsTitle: "CCTNS अपराध एवं अपराधी ट्रैकिंग नेटवर्क",
+    eSakshyaTitle: "eSakshya डिजिटल साक्ष्य (SID पैकेट)",
+    cyber1930Title: "1930 राष्ट्रीय साइबर अपराध हेल्पलाइन"
   }
 };

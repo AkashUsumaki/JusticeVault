@@ -3,7 +3,8 @@
   "description": "Secure AI-powered digital evidence management and investigation intelligence platform for courts and law enforcement with chain-of-custody tracking, KYC face authentication, and multi-language statement verification.",
   "requestFramePermissions": [
     "camera",
-    "microphone"
+    "microphone",
+    "geolocation"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

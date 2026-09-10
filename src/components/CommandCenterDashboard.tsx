@@ -161,9 +161,9 @@ export const CommandCenterDashboard: React.FC<CommandCenterDashboardProps> = ({
           </div>
 
           <div className="space-y-3">
-            {cases.map((c) => (
+            {cases.map((c, idx) => (
               <div
-                key={c.caseId}
+                key={c.caseId || `case-${idx}`}
                 onClick={() => onSelectCase(c)}
                 className="p-4 rounded-lg bg-[#0a0c0f] border border-zinc-800/60 hover:border-blue-500/40 cursor-pointer transition space-y-3 shadow-sm group"
               >
@@ -211,19 +211,25 @@ export const CommandCenterDashboard: React.FC<CommandCenterDashboardProps> = ({
           </div>
 
           <div className="p-4 rounded-lg bg-[#0a0c0f] border border-zinc-800/60 space-y-2.5">
-            {allTxs.slice(0, 5).map((tx) => (
-              <div key={tx.id} className="p-2.5 rounded bg-zinc-900/60 border border-zinc-800/60 text-xs space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-blue-400">{tx.id}</span>
-                  <span className="text-[10px] text-zinc-500">{tx.timestamp.split('T')[1].slice(0, 5)}</span>
+            {allTxs.slice(0, 5).map((tx, idx) => {
+              const txIdentifier = tx.txId || tx.id || `TX-${tx.blockNumber || 0}-${idx}`;
+              const timeDisplay = tx.timestamp?.includes('T')
+                ? tx.timestamp.split('T')[1].slice(0, 5)
+                : (tx.timestamp || '--:--');
+              return (
+                <div key={txIdentifier} className="p-2.5 rounded bg-zinc-900/60 border border-zinc-800/60 text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-blue-400">{txIdentifier}</span>
+                    <span className="text-[10px] text-zinc-500">{timeDisplay}</span>
+                  </div>
+                  <p className="font-semibold text-zinc-200 line-clamp-1">{tx.details}</p>
+                  <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
+                    <span>{tx.officerName}</span>
+                    <span className="text-emerald-400">Ed25519 Signed</span>
+                  </div>
                 </div>
-                <p className="font-semibold text-zinc-200 line-clamp-1">{tx.details}</p>
-                <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
-                  <span>{tx.officerName}</span>
-                  <span className="text-emerald-400">Ed25519 Signed</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
