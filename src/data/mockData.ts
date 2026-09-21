@@ -2,55 +2,55 @@ import { BlockchainBlock, BlockchainTransaction, CaseSharingRecord, EvidenceItem
 
 export const mockOfficers: OfficerUser[] = [
   {
-    id: 'OFF-TN-0482',
-    badgeNumber: 'TN-POL-4892',
-    name: 'Inspector K. Senthil Kumar',
+    id: 'POL-IO-0001',
+    badgeNumber: 'POL-IO-0001',
+    name: 'Inspector Akash R.',
     designation: 'Inspector of Police (Investigating Officer)',
     role: 'INVESTIGATION_OFFICER',
-    policeStation: 'E-1 Mylapore Police Station, Chennai',
-    stationCode: 'TN-CHN-MYL',
+    policeStation: 'Cyber Crime Investigation Division, Central',
+    stationCode: 'TN-CHN-CYB01',
     state: 'Tamil Nadu',
     clearanceLevel: 'LEVEL_2_SENSITIVE',
-    department: 'Crime Branch / Economic Offences',
-    phone: '+91 94454 60101',
-    email: 'senthil.k@tnpolice.gov.in',
+    department: 'Cyber Crime & Digital Forensics',
+    phone: '+91 94454 00001',
+    email: 'akash.io0001@tnpolice.gov.in',
     faceEnrolled: true,
-    faceEmbeddingId: 'VAULT-KMS-FACE-TN0482-9981',
+    faceEmbeddingId: 'VAULT-KMS-FACE-POL-IO-0001-9981',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200'
   },
   {
-    id: 'OFF-TN-0115',
-    badgeNumber: 'TN-POL-1150',
-    name: 'ACP R. Meenakshi Sundaram',
-    designation: 'Assistant Commissioner / Station Supervisor',
-    role: 'STATION_SUPERVISOR',
-    policeStation: 'E-1 Mylapore Police Station, Chennai',
-    stationCode: 'TN-CHN-MYL',
-    state: 'Tamil Nadu',
-    clearanceLevel: 'LEVEL_3_CONFIDENTIAL',
-    department: 'Law & Order / Supervisory Wing',
-    phone: '+91 94454 60050',
-    email: 'meenakshi.s@tnpolice.gov.in',
-    faceEnrolled: true,
-    faceEmbeddingId: 'VAULT-KMS-FACE-TN0115-4412',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
-  },
-  {
-    id: 'OFF-PROS-092',
-    badgeNumber: 'TN-JUD-0092',
-    name: 'Adv. Anandhi Ramanathan',
-    designation: 'Senior Public Prosecutor',
-    role: 'PUBLIC_PROSECUTOR',
-    policeStation: 'Sessions Court Directorate of Prosecution, Chennai',
-    stationCode: 'TN-CHN-COURT',
+    id: 'POL-IO-2148',
+    badgeNumber: 'POL-IO-2148',
+    name: 'Sub-Inspector Bharath K.',
+    designation: 'Sub-Inspector of Police (Forensic Field Lead)',
+    role: 'INVESTIGATION_OFFICER',
+    policeStation: 'Crime Branch Investigation Wing, Chennai',
+    stationCode: 'TN-CHN-CB2148',
     state: 'Tamil Nadu',
     clearanceLevel: 'LEVEL_2_SENSITIVE',
-    department: 'Directorate of Prosecution',
-    phone: '+91 98401 55902',
-    email: 'anandhi.r@tndop.gov.in',
+    department: 'Crime Investigation & Anti-Fraud Unit',
+    phone: '+91 94454 02148',
+    email: 'bharath.io2148@tnpolice.gov.in',
     faceEnrolled: true,
-    faceEmbeddingId: 'VAULT-KMS-FACE-PROS-8127',
-    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200'
+    faceEmbeddingId: 'VAULT-KMS-FACE-POL-IO-2148-7741',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200'
+  },
+  {
+    id: 'POL-IO-1025',
+    badgeNumber: 'POL-IO-1025',
+    name: 'Inspector Dhinesh M.',
+    designation: 'Inspector of Police (Evidence Custodian & Lead IO)',
+    role: 'INVESTIGATION_OFFICER',
+    policeStation: 'State Cyber Crime Headquarters, CBCID',
+    stationCode: 'TN-CHN-HQ1025',
+    state: 'Tamil Nadu',
+    clearanceLevel: 'LEVEL_3_CONFIDENTIAL',
+    department: 'Digital Evidence Vault & CCTNS Directorate',
+    phone: '+91 94454 01025',
+    email: 'dhinesh.io1025@tnpolice.gov.in',
+    faceEnrolled: true,
+    faceEmbeddingId: 'VAULT-KMS-FACE-POL-IO-1025-5519',
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200'
   },
   {
     id: 'OFF-ADMIN-001',
@@ -360,6 +360,160 @@ export const mockEvidenceItems: EvidenceItem[] = [
     tags: ['ANPR Vehicle', 'Toll CCTV', 'Vehicle Movement', 'Escape Route'],
     thumbnailUrl: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400',
     sourceSystem: 'CCTNS_IMPORT'
+  },
+  {
+    id: 'EVD-TN-002194-003',
+    caseId: 'TN-MDU-2026-002194',
+    title: 'Showroom Alley CCTV Footage (03:15 AM Rear Break-in)',
+    category: 'VIDEO',
+    fileName: 'Alley_CCTV_SouthAvani_0315AM.mp4',
+    fileSizeBytes: 32400000,
+    mimeType: 'video/mp4',
+    sha256Hash: '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b',
+    uploadTimestamp: '2026-08-16T10:00:00Z',
+    uploadedByOfficerId: 'OFF-TN-0482',
+    uploadedByOfficerName: 'Inspector K. Senthil Kumar',
+    deviceInfo: 'Shop Security DVR Export',
+    gpsLocation: {
+      latitude: 9.9195,
+      longitude: 78.1198,
+      addressName: 'South Avani Moola St, Madurai'
+    },
+    encryptionStatus: 'AES-256-ENCRYPTED',
+    malwareScanStatus: 'CLEAN',
+    version: 1,
+    extractedText: 'Rear camera captures masked individual forcing rear iron shutter at 03:15 AM with bolt cutter, entering store room, leaving at 03:32 AM with heavy sack matching bike rider backpack.',
+    tags: ['CCTV Video', 'Break-in', 'Shutter Force', 'Madurai'],
+    thumbnailUrl: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&q=80&w=400',
+    sourceSystem: 'DIRECT_UPLOAD'
+  },
+  {
+    id: 'EVD-TN-002194-004',
+    caseId: 'TN-MDU-2026-002194',
+    title: 'Seizure Mahazar of Recovered 450g Gold Ornaments & Cash',
+    category: 'DOCUMENT',
+    fileName: 'Gold_Seizure_Mahazar_Sec105_BNSS.pdf',
+    fileSizeBytes: 5800000,
+    mimeType: 'application/pdf',
+    sha256Hash: '5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a',
+    uploadTimestamp: '2026-08-17T14:20:00Z',
+    uploadedByOfficerId: 'OFF-TN-0482',
+    uploadedByOfficerName: 'Inspector K. Senthil Kumar',
+    deviceInfo: 'Field Tablet / eSakshya Mahazar Portal',
+    gpsLocation: {
+      latitude: 9.5872,
+      longitude: 77.9578,
+      addressName: 'Suspect Hideout, Virudhunagar Outskirts'
+    },
+    encryptionStatus: 'AES-256-ENCRYPTED',
+    malwareScanStatus: 'CLEAN',
+    version: 1,
+    extractedText: 'Recovery under Section 23 BSA / Section 27 Evidence Act: 450g 22-karat gold necklaces and bangles bearing Muthulakshmi Jewellers hallmark stamps recovered from concealed compartment.',
+    tags: ['Gold Seizure', 'Mahazar', 'Panchas', 'Recovery', 'BNSS 105'],
+    sourceSystem: 'eSakshya_SID'
+  },
+
+  // Evidence for Case KL-TVM-2026-001087 (Timber Warehouse Homicide)
+  {
+    id: 'EVD-KL-001087-001',
+    caseId: 'KL-TVM-2026-001087',
+    title: 'Post-Mortem Medical Report (Medical College Hospital TVM)',
+    category: 'FORENSIC_REPORT',
+    fileName: 'PostMortem_Report_MCH_TVM_94.pdf',
+    fileSizeBytes: 8900000,
+    mimeType: 'application/pdf',
+    sha256Hash: '9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b',
+    uploadTimestamp: '2026-07-29T11:00:00Z',
+    uploadedByOfficerId: 'OFF-TN-0482',
+    uploadedByOfficerName: 'Inspector K. Senthil Kumar',
+    deviceInfo: 'Forensic Medicine Department, MCH Thiruvananthapuram',
+    gpsLocation: {
+      latitude: 8.5241,
+      longitude: 76.9366,
+      addressName: 'Govt Medical College, Medical College PO, Thiruvananthapuram'
+    },
+    encryptionStatus: 'AES-256-ENCRYPTED',
+    malwareScanStatus: 'CLEAN',
+    version: 1,
+    extractedText: 'Post-Mortem Examination No. PM-TVM-2026-441: Ante-mortem blunt force cranial trauma caused by heavy cylindrical iron instrument. Time of death estimated between 18:00 and 19:30 on 27-07-2026. Blood group O-positive.',
+    tags: ['Autopsy', 'Forensic', 'Head Injury', 'Medical Evidence', 'BSA 63'],
+    sourceSystem: 'DIRECT_UPLOAD'
+  },
+  {
+    id: 'EVD-KL-001087-002',
+    caseId: 'KL-TVM-2026-001087',
+    title: 'Traffic Surveillance CCTV (East Fort Junction, 18:48 PM)',
+    category: 'VIDEO',
+    fileName: 'Traffic_CCTV_EastFort_27July_1848.mp4',
+    fileSizeBytes: 44200000,
+    mimeType: 'video/mp4',
+    sha256Hash: 'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2',
+    uploadTimestamp: '2026-07-30T09:30:00Z',
+    uploadedByOfficerId: 'OFF-TN-0482',
+    uploadedByOfficerName: 'Inspector K. Senthil Kumar',
+    deviceInfo: 'Smart City Traffic Surveillance Feed #09',
+    gpsLocation: {
+      latitude: 8.4835,
+      longitude: 76.9446,
+      addressName: 'East Fort Traffic Junction, Thiruvananthapuram'
+    },
+    encryptionStatus: 'AES-256-ENCRYPTED',
+    malwareScanStatus: 'CLEAN',
+    version: 1,
+    extractedText: 'Surveillance Camera #09 East Fort: White Maruti Swift KL-01-BW-8821 registered to accused Unnikrishnan Nair captured driving away from Chalakkuzhi warehouse road at 18:48 PM.',
+    tags: ['CCTV Video', 'East Fort', 'Vehicle Movement', 'Suspect Car'],
+    thumbnailUrl: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&q=80&w=400',
+    sourceSystem: 'CCTNS_IMPORT'
+  },
+  {
+    id: 'EVD-KL-001087-003',
+    caseId: 'KL-TVM-2026-001087',
+    title: 'Seized 2.5ft Heavy Iron Rod Weapon with Latent Blood Traces',
+    category: 'DOCUMENT',
+    fileName: 'Forensic_Chemical_Analysis_Blood_Rod.pdf',
+    fileSizeBytes: 6100000,
+    mimeType: 'application/pdf',
+    sha256Hash: 'c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4',
+    uploadTimestamp: '2026-07-31T16:00:00Z',
+    uploadedByOfficerId: 'OFF-TN-0482',
+    uploadedByOfficerName: 'Inspector K. Senthil Kumar',
+    deviceInfo: 'State Forensic Science Laboratory (SFSL TVM)',
+    gpsLocation: {
+      latitude: 8.4835,
+      longitude: 76.9446,
+      addressName: 'Chalakkuzhi Road Warehouse Compound, Thiruvananthapuram'
+    },
+    encryptionStatus: 'AES-256-ENCRYPTED',
+    malwareScanStatus: 'CLEAN',
+    version: 1,
+    extractedText: 'SFSL Report #SFSL-KL-2026-1092: Latent human blood on recovered 2.5ft ribbed iron rod matches victim DNA and blood group O-positive. Fingerprint minutiae on grip matches accused Unnikrishnan Nair.',
+    tags: ['Murder Weapon', 'Blood Traces', 'DNA Match', 'Fingerprints', 'Iron Rod'],
+    sourceSystem: 'DIRECT_UPLOAD'
+  },
+  {
+    id: 'EVD-KL-001087-004',
+    caseId: 'KL-TVM-2026-001087',
+    title: 'Suspect Mobile CDR & Tower Latch Log (Airtel Kerala Circle)',
+    category: 'DIGITAL_RECORD',
+    fileName: 'CDR_Airtel_Unnikrishnan_9447199201.xlsx',
+    fileSizeBytes: 3500000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    sha256Hash: 'd5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6',
+    uploadTimestamp: '2026-08-01T10:15:00Z',
+    uploadedByOfficerId: 'OFF-TN-0482',
+    uploadedByOfficerName: 'Inspector K. Senthil Kumar',
+    deviceInfo: 'CCTNS Telecom Intercept Node',
+    gpsLocation: {
+      latitude: 8.4835,
+      longitude: 76.9446,
+      addressName: 'Cell Tower KL-TVM-019 (East Fort)'
+    },
+    encryptionStatus: 'AES-256-ENCRYPTED',
+    malwareScanStatus: 'CLEAN',
+    version: 1,
+    extractedText: 'Suspect Mobile +91 94471 99201 latched to Tower KL-TVM-019 (East Fort) continuously from 17:30 to 19:15 PM on 27-07-2026, directly refuting suspect claim of being admitted at Kottayam Hospital (150 km away).',
+    tags: ['CDR Log', 'Tower Latch', 'Alibi Refutation', 'Airtel Kerala'],
+    sourceSystem: 'CCTNS_IMPORT'
   }
 ];
 
@@ -466,6 +620,154 @@ export const mockStatementReports: StatementVerificationReport[] = [
         confidenceScore: 40,
         evidenceMatchSummary: 'No direct WhatsApp or contact book evidence linking Praveen Kumar yet; requires bank KYC verification from Axis Bank.',
         citedEvidence: []
+      }
+    ]
+  },
+  {
+    id: 'STMT-REP-002',
+    caseId: 'TN-MDU-2026-002194',
+    speakerName: 'Selvam @ Bullet Selvam (Accused Burglar)',
+    speakerRole: 'SUSPECT',
+    statementDate: '2026-08-16',
+    recordedByOfficer: 'Inspector K. Senthil Kumar',
+    language: 'en',
+    rawStatementText: 'I was in Tirunelveli from August 12 to 14 staying at my cousin\'s shop. I have never entered Muthulakshmi Jewellers or South Avani Moola street. I was having tea at Tirunelveli junction at 3:30 AM on August 13th. I do not own any industrial bolt cutter or know anything about the stolen gold.',
+    analysisTimestamp: '2026-08-16T18:30:00Z',
+    overallConsistencyScore: 18,
+    totalClaimsCount: 4,
+    consistentCount: 0,
+    contradictedCount: 3,
+    unverifiedCount: 1,
+    reviewRequiredCount: 0,
+    aiDisclaimer: 'AI strictly evaluates consistency against registered case evidence for officer review.',
+    claims: [
+      {
+        id: 'CLM-MDU-01',
+        claimText: 'I was having tea at Tirunelveli junction at 3:30 AM on August 13th.',
+        language: 'en',
+        category: 'ALIBI',
+        status: 'CONTRADICTED',
+        confidenceScore: 99,
+        evidenceMatchSummary: 'Contradicted by NHAI Kappalur Toll Plaza ANPR camera capturing bike TN-58-BQ-9921 heading away from Madurai at 03:42 AM.',
+        citedEvidence: [
+          {
+            evidenceId: 'EVD-TN-002194-002',
+            evidenceTitle: 'Toll Plaza ANPR Camera Log (Kappalur Toll)',
+            evidenceType: 'IMAGE',
+            quoteOrSnippet: 'Bike TN-58-BQ-9921 crossed at 03:42 AM',
+            contradictionReason: 'Geographically impossible to be in Tirunelveli (120 km away) at 03:30 AM.'
+          }
+        ]
+      },
+      {
+        id: 'CLM-MDU-02',
+        claimText: 'I never entered the store or touched the cash locker.',
+        language: 'en',
+        category: 'FORENSIC',
+        status: 'CONTRADICTED',
+        confidenceScore: 98,
+        evidenceMatchSummary: 'Contradicted by FSL Madurai report identifying matching latent palm print on the cash locker.',
+        citedEvidence: [
+          {
+            evidenceId: 'EVD-TN-002194-001',
+            evidenceTitle: 'FSL Forensic Fingerprint & Toolmark Analysis Report',
+            evidenceType: 'FORENSIC_REPORT',
+            quoteOrSnippet: 'Latent palm print matches criminal record FPR-MDU-19984',
+            contradictionReason: 'Direct physical evidence placed accused inside locker room.'
+          }
+        ]
+      },
+      {
+        id: 'CLM-MDU-03',
+        claimText: 'I know nothing about the stolen gold ornaments.',
+        language: 'en',
+        category: 'POSSESSION',
+        status: 'CONTRADICTED',
+        confidenceScore: 95,
+        evidenceMatchSummary: 'Contradicted by Seizure Mahazar recovering 450g of hallmarked gold from suspect Virudhunagar hideout.',
+        citedEvidence: [
+          {
+            evidenceId: 'EVD-TN-002194-004',
+            evidenceTitle: 'Seizure Mahazar of Recovered 450g Gold Ornaments',
+            evidenceType: 'DOCUMENT',
+            quoteOrSnippet: 'Recovered 450g hallmarked jewellery with Muthulakshmi Jewellers seal',
+            contradictionReason: 'Physical recovery conducted under Section 23 BSA.'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'STMT-REP-003',
+    caseId: 'KL-TVM-2026-001087',
+    speakerName: 'Unnikrishnan Nair (Accused Partner)',
+    speakerRole: 'SUSPECT',
+    statementDate: '2026-08-01',
+    recordedByOfficer: 'Inspector K. Senthil Kumar',
+    language: 'en',
+    rawStatementText: 'On July 27th evening between 5:30 PM and 8:00 PM, I was at Kottayam District Hospital getting treatment for acute viral fever. I never visited the Chalakkuzhi timber warehouse or met the deceased. I have never seen the iron rod.',
+    analysisTimestamp: '2026-08-01T15:00:00Z',
+    overallConsistencyScore: 10,
+    totalClaimsCount: 3,
+    consistentCount: 0,
+    contradictedCount: 3,
+    unverifiedCount: 0,
+    reviewRequiredCount: 0,
+    aiDisclaimer: 'AI strictly evaluates consistency against registered case evidence for officer review.',
+    claims: [
+      {
+        id: 'CLM-KL-01',
+        claimText: 'I was at Kottayam District Hospital (150 km away) between 5:30 PM and 8:00 PM on July 27th.',
+        language: 'en',
+        category: 'ALIBI',
+        status: 'CONTRADICTED',
+        confidenceScore: 99,
+        evidenceMatchSummary: 'Contradicted by CDR records showing phone +91 94471 99201 latched to Tower KL-TVM-019 (East Fort) from 17:30 to 19:15 PM.',
+        citedEvidence: [
+          {
+            evidenceId: 'EVD-KL-001087-004',
+            evidenceTitle: 'Suspect Mobile CDR & Tower Latch Log (Airtel Kerala)',
+            evidenceType: 'DIGITAL_RECORD',
+            quoteOrSnippet: 'Latched to East Fort tower 17:30 to 19:15 PM',
+            contradictionReason: 'Suspect phone was located 150 km away from claimed hospital alibi.'
+          }
+        ]
+      },
+      {
+        id: 'CLM-KL-02',
+        claimText: 'I never visited the warehouse area on July 27th.',
+        language: 'en',
+        category: 'MOVEMENT',
+        status: 'CONTRADICTED',
+        confidenceScore: 96,
+        evidenceMatchSummary: 'Contradicted by Traffic CCTV Camera #09 at East Fort Junction capturing suspect\'s car KL-01-BW-8821 leaving warehouse road at 18:48 PM.',
+        citedEvidence: [
+          {
+            evidenceId: 'EVD-KL-001087-002',
+            evidenceTitle: 'Traffic Surveillance CCTV (East Fort Junction, 18:48 PM)',
+            evidenceType: 'VIDEO',
+            quoteOrSnippet: 'White Maruti Swift KL-01-BW-8821 passing at 18:48 PM',
+            contradictionReason: 'CCTV timestamps prove vehicle presence adjacent to crime scene.'
+          }
+        ]
+      },
+      {
+        id: 'CLM-KL-03',
+        claimText: 'I have never touched or seen the iron rod weapon.',
+        language: 'en',
+        category: 'WEAPON',
+        status: 'CONTRADICTED',
+        confidenceScore: 98,
+        evidenceMatchSummary: 'Contradicted by SFSL laboratory report confirming suspect\'s fingerprint minutiae and victim\'s blood group on the iron rod handle.',
+        citedEvidence: [
+          {
+            evidenceId: 'EVD-KL-001087-003',
+            evidenceTitle: 'Seized 2.5ft Heavy Iron Rod Weapon with Latent Blood Traces',
+            evidenceType: 'DOCUMENT',
+            quoteOrSnippet: 'Fingerprint minutiae on grip matches accused Unnikrishnan Nair',
+            contradictionReason: 'Direct latent fingerprint on the murder weapon.'
+          }
+        ]
       }
     ]
   }

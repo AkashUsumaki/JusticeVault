@@ -5,7 +5,7 @@ import {
   Unlock,
   ShieldAlert,
   ShieldCheck,
-  Download,
+  Eye,
   Upload,
   RefreshCw,
   FileText,
@@ -20,19 +20,25 @@ import {
   CheckCircle2,
   ExternalLink,
   Search,
+  Volume2,
 } from 'lucide-react';
-import { EvidenceItem, DatabaseStats, FIRDetails } from '../types';
+import { EvidenceItem, DatabaseStats, FIRDetails, OfficerUser } from '../types';
+import { BiometricSecurityModal } from './BiometricSecurityModal';
 
 interface SecureDatabaseViewProps {
   selectedCase: FIRDetails | null;
+  currentOfficer?: OfficerUser;
   onEvidenceUpdated?: () => void;
   onSelectEvidence?: (evidence: EvidenceItem) => void;
+  onLogBlockchainEvent?: (action: string, details: string) => void;
 }
 
 export const SecureDatabaseView: React.FC<SecureDatabaseViewProps> = ({
   selectedCase,
+  currentOfficer,
   onEvidenceUpdated,
   onSelectEvidence,
+  onLogBlockchainEvent,
 }) => {
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [evidenceList, setEvidenceList] = useState<EvidenceItem[]>([]);
@@ -40,8 +46,81 @@ export const SecureDatabaseView: React.FC<SecureDatabaseViewProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
 
+  // Fallback Officer details for clearance
+  const activeOfficer: OfficerUser = currentOfficer || {
+    id: 'OFF-TN-0482',
+    badgeNumber: 'TN-INSP-4081',
+    name: 'Inspector K. Ramanathan',
+    designation: 'Inspector of Police (Crime / Cyber)',
+    role: 'INVESTIGATION_OFFICER' as const,
+    policeStation: selectedCase?.policeStation || 'E-1 Mylapore Police Station, Chennai',
+    stationCode: selectedCase?.stationCode || 'TN-CHN-MYL',
+    state: 'Tamil Nadu' as const,
+    clearanceLevel: 'LEVEL_2_SENSITIVE' as const,
+    department: 'Law & Order / Cyber Crime Division',
+    phone: '+91 94440 12345',
+    email: 'k.ramanathan@tnpolice.gov.in',
+    faceEnrolled: true,
+    faceEmbeddingId: 'EMB-TN-4081-SEC63',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+  };
+
+  // Biometric Modal Gatekeeper State
+  const [biometricModal, setBiometricModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onSuccess: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onSuccess: () => {},
+  });
+
+  const requestBiometricClearance = (title: string, description: string, onSuccess: () => void) => {
+    setBiometricModal({
+      isOpen: true,
+      title,
+      description,
+      onSuccess,
+    });
+  };
+
   // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
+  const [viewOnlyEvidence, setViewOnlyEvidence] = useState<EvidenceItem | null>(null);
+
+  const handleViewEvidenceWith2FA = (ev: EvidenceItem) => {
+    requestBiometricClearance(
+      'Two-Factor Biometric Evidence Clearance',
+      `Officer identity verification (Face & Fingerprint) required to decrypt and view sensitive case evidence: ${ev.title}`,
+      () => {
+        setViewOnlyEvidence(ev);
+        if (onLogBlockchainEvent) {
+          onLogBlockchainEvent(
+            'EVIDENCE_VIEW',
+            `Officer ${activeOfficer.name} (${activeOfficer.badgeNumber}) completed 2FA biometric verification and viewed evidence "${ev.title}" (ID: ${ev.id})`
+          );
+        }
+        fetch('/api/blockchain/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'EVIDENCE_VIEW',
+            details: `Officer ${activeOfficer.name} (${activeOfficer.badgeNumber}) completed 2FA biometric verification and viewed evidence "${ev.title}" (ID: ${ev.id})`,
+            officerId: activeOfficer.id,
+            officerName: activeOfficer.name,
+            officerBadge: activeOfficer.badgeNumber,
+            stationCode: activeOfficer.stationCode,
+            evidenceId: ev.id,
+            evidenceHash: ev.sha256Hash,
+            timestamp: new Date().toISOString(),
+          }),
+        }).catch((err) => console.warn('Audit log error:', err));
+      }
+    );
+  };
   const [uploadTitle, setUploadTitle] = useState<string>('');
   const [uploadCategory, setUploadCategory] = useState<string>('IMAGE');
   const [uploadFileName, setUploadFileName] = useState<string>('');
@@ -215,8 +294,14 @@ export const SecureDatabaseView: React.FC<SecureDatabaseViewProps> = ({
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
           <button
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition"
+            onClick={() =>
+              requestBiometricClearance(
+                'Deposit Digital Evidence into AES-256 Vault',
+                `Biometric 2FA clearance required to store new forensic evidence in case ${selectedCase?.firNumber || ''}`,
+                () => setShowUploadModal(true)
+              )
+            }
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition cursor-pointer"
           >
             <Upload className="w-4 h-4" />
             Store New Evidence
@@ -372,21 +457,26 @@ export const SecureDatabaseView: React.FC<SecureDatabaseViewProps> = ({
 
                 {/* Evidence Item Actions */}
                 <div className="flex items-center gap-2">
-                  <a
-                    href={`/api/evidence/${ev.id}/file`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 rounded-lg text-xs font-medium transition"
+                  <button
+                    type="button"
+                    onClick={() => handleViewEvidenceWith2FA(ev)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition cursor-pointer"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    Download File from DB
-                  </a>
+                    <Eye className="w-3.5 h-3.5" />
+                    View Evidence (2FA Required)
+                  </button>
 
                   {/* Simulate Tamper Button */}
                   <button
-                    onClick={() => handleToggleTamper(ev.id, Boolean(ev.isTampered))}
+                    onClick={() =>
+                      requestBiometricClearance(
+                        ev.isTampered ? 'Restore Clean Cryptographic Evidence' : 'Simulate Cryptographic File Tamper',
+                        `Biometric clearance required to perform hash tamper simulation test on ${ev.fileName}`,
+                        () => handleToggleTamper(ev.id, Boolean(ev.isTampered))
+                      )
+                    }
                     disabled={tamperLoadingId === ev.id}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
                       ev.isTampered
                         ? 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border-emerald-500/30'
                         : 'bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border-rose-500/30'
@@ -424,50 +514,58 @@ export const SecureDatabaseView: React.FC<SecureDatabaseViewProps> = ({
                 )}
               </div>
 
-              {/* Content & Metadata Preview */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-850">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block mb-1">
-                    Forensic Extracted Content:
-                  </span>
-                  <p className="text-slate-300 leading-relaxed">
-                    {ev.extractedText || 'No text extracted.'}
-                  </p>
+              {/* Concealed Encrypted Payload Box (Evidence concealed until 2FA clearance) */}
+              <div className="p-3.5 rounded-lg bg-slate-950/90 border border-slate-800 text-center space-y-2">
+                <div className="flex items-center justify-center gap-2 text-slate-300 text-xs font-semibold">
+                  <Lock className="w-4 h-4 text-amber-400" />
+                  <span>Concealed Encrypted Payload (AES-256-GCM)</span>
                 </div>
+                <p className="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  Under Police Vault Evidence Rules, raw file content and transcripts are concealed. Officer Two-Factor Biometric Authentication (Face & Fingerprint) required to decrypt and view.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleViewEvidenceWith2FA(ev)}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow transition cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5 text-blue-200" />
+                  <span>Authenticate 2FA & View Evidence (View Only)</span>
+                </button>
+              </div>
 
-                <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-850 space-y-1.5">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block mb-1">
-                    Chain-of-Custody Provenance:
-                  </span>
-                  <div className="flex items-center justify-between text-slate-300">
-                    <div className="flex items-center gap-2 truncate">
-                      <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
-                      <span className="truncate">
-                        {ev.gpsLocation?.addressName || 'Geocoded field site'} (
-                        {ev.gpsLocation?.latitude.toFixed(4)}°, {ev.gpsLocation?.longitude.toFixed(4)}°)
-                      </span>
-                    </div>
-                    {ev.gpsLocation?.latitude && ev.gpsLocation?.longitude && (
-                      <a
-                        href={`https://www.openstreetmap.org/?mlat=${ev.gpsLocation.latitude}&mlon=${ev.gpsLocation.longitude}#map=17/${ev.gpsLocation.latitude}/${ev.gpsLocation.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline inline-flex items-center gap-1 font-medium shrink-0 ml-2"
-                        title="Inspect on OpenStreetMap"
-                      >
-                        <span>OSM</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    )}
+              {/* Chain-of-Custody Provenance Attributes */}
+              <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-850 space-y-1.5 text-xs">
+                <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block mb-1">
+                  Chain-of-Custody Provenance Attributes:
+                </span>
+                <div className="flex items-center justify-between text-slate-300">
+                  <div className="flex items-center gap-2 truncate">
+                    <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                    <span className="truncate">
+                      {ev.gpsLocation?.addressName || 'Geocoded field site'} (
+                      {ev.gpsLocation?.latitude.toFixed(4)}°, {ev.gpsLocation?.longitude.toFixed(4)}°)
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2 text-slate-300">
-                    <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                    <span>Uploaded: {ev.uploadTimestamp}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-300">
-                    <Key className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-                    <span>Officer: {ev.uploadedByOfficerName} ({ev.uploadedByOfficerId})</span>
-                  </div>
+                  {ev.gpsLocation?.latitude && ev.gpsLocation?.longitude && (
+                    <a
+                      href={`https://www.openstreetmap.org/?mlat=${ev.gpsLocation.latitude}&mlon=${ev.gpsLocation.longitude}#map=17/${ev.gpsLocation.latitude}/${ev.gpsLocation.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline inline-flex items-center gap-1 font-medium shrink-0 ml-2"
+                      title="Inspect on OpenStreetMap"
+                    >
+                      <span>OSM</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <span>Uploaded: {ev.uploadTimestamp}</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Key className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+                  <span>Officer: {ev.uploadedByOfficerName} ({ev.uploadedByOfficerId})</span>
                 </div>
               </div>
             </div>
@@ -598,6 +696,115 @@ export const SecureDatabaseView: React.FC<SecureDatabaseViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* View-Only Decrypted Evidence Modal (Restricted Download) */}
+      {viewOnlyEvidence && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-750 rounded-xl shadow-2xl overflow-hidden my-8">
+            <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-wide">{viewOnlyEvidence.title}</h3>
+                <p className="text-xs text-slate-400 font-mono">{viewOnlyEvidence.fileName} • ID: {viewOnlyEvidence.id}</p>
+              </div>
+              <button
+                onClick={() => setViewOnlyEvidence(null)}
+                className="text-slate-400 hover:text-white text-sm p-1 rounded hover:bg-slate-800 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+              {/* Mandatory View-Only Security Mandate Banner */}
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 font-semibold">
+                  <ShieldCheck className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                  <span>VIEW-ONLY FORENSIC ACCESS • DOWNLOADING RESTRICTED UNDER CCTNS & BSA RULES</span>
+                </div>
+                <span className="text-[10px] font-mono text-amber-400/90 bg-black/40 px-2 py-0.5 rounded">
+                  2FA Verified • Officer: {activeOfficer.badgeNumber}
+                </span>
+              </div>
+
+              {/* Media if Image */}
+              {viewOnlyEvidence.thumbnailUrl && (
+                <div
+                  className="rounded border border-slate-800 overflow-hidden bg-black flex justify-center relative select-none"
+                  onContextMenu={(e) => e.preventDefault()}
+                >
+                  <img
+                    src={viewOnlyEvidence.thumbnailUrl}
+                    alt={viewOnlyEvidence.title}
+                    draggable={false}
+                    className="max-h-80 w-auto object-contain pointer-events-none select-none"
+                  />
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-amber-300 border border-amber-500/30">
+                    VIEW ONLY • NO EXPORT
+                  </div>
+                </div>
+              )}
+
+              {/* Media if Audio */}
+              {viewOnlyEvidence.category === 'AUDIO' && viewOnlyEvidence.signedUrl && (
+                <div className="p-4 rounded bg-slate-950 border border-slate-800 space-y-2">
+                  <span className="font-bold text-white flex items-center gap-2">
+                    <Volume2 className="w-4 h-4 text-amber-400" /> Playback Audio Track (Protected Stream)
+                  </span>
+                  <audio
+                    src={viewOnlyEvidence.signedUrl}
+                    controls
+                    controlsList="nodownload"
+                    className="w-full"
+                    onContextMenu={(e) => e.preventDefault()}
+                  />
+                </div>
+              )}
+
+              {/* SHA-256 Fingerprint */}
+              <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 font-mono space-y-1">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">
+                  Genesis SHA-256 Cryptographic Checksum:
+                </span>
+                <p className="text-emerald-400 break-all text-xs">{viewOnlyEvidence.sha256Hash}</p>
+              </div>
+
+              {/* Extracted Forensic Text */}
+              {viewOnlyEvidence.extractedText && (
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">
+                    Extracted Text Content:
+                  </span>
+                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 font-mono text-slate-200 leading-relaxed max-h-48 overflow-y-auto">
+                    {viewOnlyEvidence.extractedText}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3.5 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 font-mono">Access Session Verified via Biometric 2FA</span>
+              <button
+                type="button"
+                onClick={() => setViewOnlyEvidence(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg text-xs font-semibold transition"
+              >
+                Close View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Biometric Security Gatekeeper Modal */}
+      <BiometricSecurityModal
+        isOpen={biometricModal.isOpen}
+        onClose={() => setBiometricModal((prev) => ({ ...prev, isOpen: false }))}
+        onSuccess={biometricModal.onSuccess}
+        officer={activeOfficer}
+        actionTitle={biometricModal.title}
+        actionDescription={biometricModal.description}
+        onLogBlockchainEvent={onLogBlockchainEvent}
+      />
     </div>
   );
 };

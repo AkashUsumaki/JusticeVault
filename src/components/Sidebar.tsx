@@ -151,9 +151,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex items-center gap-3">
             <NationalEmblem size={32} className="shrink-0" />
             <div>
-              <div className="font-bold tracking-tight text-white text-base font-serif flex items-center gap-1.5">
-                <span>न्याय-साक्ष्य</span>
-                <span className="text-amber-400 text-xs font-sans font-bold">PORTAL</span>
+              <div className="font-bold tracking-tight text-white text-base flex items-center gap-1.5">
+                <span>JusticeVault</span>
+                <span className="text-amber-400 text-xs font-mono font-bold px-1 py-0.2 rounded bg-amber-500/10 border border-amber-500/20">PORTAL</span>
               </div>
               <div className="text-[9px] text-amber-300 font-medium tracking-wider uppercase">
                 GOVERNMENT OF INDIA • MHA

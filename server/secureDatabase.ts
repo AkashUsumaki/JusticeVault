@@ -30,6 +30,8 @@ export interface StoredEvidenceRecord {
   cipherAlgorithm: string;
   tags: string[];
   extractedText?: string;
+  ocrConfidence?: number;
+  entitiesExtracted?: any[];
   sourceSystem?: string;
   storageFilePath?: string;
 }
@@ -174,115 +176,152 @@ function persistVaultToDisk() {
 
 // Load Vault from Disk or Initialize with Police Consortium Seed Data
 export function initializeSecureDatabase() {
-  if (fs.existsSync(DB_FILE)) {
-    try {
-      const content = fs.readFileSync(DB_FILE, 'utf8');
-      vault = JSON.parse(content);
-      console.log(`[SecureDB] Loaded ${Object.keys(vault.evidence).length} evidence items and ${Object.keys(vault.cases).length} cases from ${DB_FILE}`);
-      return;
-    } catch (err) {
-      console.warn('[SecureDB] Error parsing existing db, re-seeding:', err);
-    }
-  }
-
   // Seed Initial Cases
   const seedCases: StoredCaseRecord[] = [
     {
       caseId: 'TN-CHN-2026-004812',
-      firNumber: 'FIR No. 482/2026',
-      policeStation: 'E-3 T. Nagar Police Station, Chennai',
-      stationCode: 'TN-CHN-E03',
-      registrationDate: '2026-08-08',
-      registrationTime: '14:20:00',
-      offenceSections: ['BNS Sec 303 (Theft)', 'BNS Sec 318 (Cheating by Impersonation)', 'IT Act 66D'],
-      ipcSectionsEquivalent: ['IPC 379', 'IPC 420'],
+      firNumber: 'FIR No. 182/2026',
+      policeStation: 'E-1 Mylapore Police Station, Chennai',
+      stationCode: 'TN-CHN-MYL',
+      registrationDate: '2026-08-10',
+      registrationTime: '14:30:00',
+      offenceSections: [
+        'BNS 318(4) / IPC 420 (Cheating & Financial Fraud)',
+        'BNS 61(2) / IPC 120B (Criminal Conspiracy)',
+        'IT Act Sec 66D (Cheating by Personation using Computer)',
+      ],
+      ipcSectionsEquivalent: ['IPC 420', 'IPC 120B', 'IT Act 66D'],
       complainant: {
-        name: 'S. Rajendran',
-        contact: '+91 98401 23456',
-        address: 'No. 14, Usman Road, T. Nagar, Chennai - 600017',
-        identification: 'Aadhaar XXXX-XXXX-4819',
+        name: 'V. Sundaram (72 yrs, Retd. Bank Manager)',
+        contact: '+91 98402 11982',
+        address: 'No. 44, Luz Church Road, Mylapore, Chennai - 600004',
+        identification: 'Aadhaar XXXX-XXXX-4912',
       },
       accused: [
         {
-          name: 'Dinesh Kumar alias Rocky',
-          alias: 'Rocky',
-          status: 'Identified',
-          details: 'Spotted on SBI ATM CCTV camera at Usman Road junction withdrawing ₹1,80,000 using cloned debit card.',
+          name: 'Dinesh @ Karthik Raja',
+          alias: 'Cyber Karthik',
+          status: 'In Custody',
+          details: 'Mule account aggregator and SIM provider operating out of Kodambakkam.',
         },
         {
-          name: 'Unknown Accomplice',
-          status: 'Unknown',
-          details: 'Rider of black Yamaha FZ motorcycle TN-09-CB-4491 waiting outside ATM.',
+          name: 'Praveen Kumar',
+          alias: 'Praveen',
+          status: 'Identified',
+          details: 'Beneficiary of Axis Bank mule transfer account.',
         },
       ],
       incidentDate: '2026-08-08 10:15:00',
-      incidentLocation: 'State Bank of India ATM, Usman Road, T. Nagar, Chennai',
-      gpsCoordinates: { lat: 13.0418, lng: 80.2342 },
-      briefDescription: 'Cloned card financial fraud and targeted physical extortion outside SBI ATM kiosk on Usman Road.',
-      investigatingOfficerId: 'TN-INSP-4081',
-      investigatingOfficerName: 'Inspector K. Ramanathan',
+      incidentLocation: 'Mylapore / Digital Banking Network',
+      gpsCoordinates: { lat: 13.0338, lng: 80.2677 },
+      briefDescription: 'Complainant was deceived into transferring ₹14,50,000 via RTGS under false pretext of digital arrest for FedEx parcel containing contraband. Funds routed through 3 mule accounts.',
+      investigatingOfficerId: 'OFF-TN-0482',
+      investigatingOfficerName: 'Inspector K. Senthil Kumar',
       status: 'UNDER_INVESTIGATION',
-      chargesheetDeadline: '2026-10-07',
-      daysRemainingForChargesheet: 31,
+      chargesheetDeadline: '2026-11-08',
+      daysRemainingForChargesheet: 72,
     },
     {
-      caseId: 'KL-EKM-2026-001290',
-      firNumber: 'FIR No. 129/2026',
-      policeStation: 'Central Police Station, Ernakulam, Kochi',
-      stationCode: 'KL-EKM-C01',
-      registrationDate: '2026-08-02',
-      registrationTime: '11:00:00',
-      offenceSections: ['BNS Sec 111 (Organized Crime Syndicate)', 'IT Act 66C'],
-      ipcSectionsEquivalent: ['IPC 120B'],
+      caseId: 'TN-MDU-2026-002194',
+      firNumber: 'FIR No. 209/2026',
+      policeStation: 'B-1 Vilakkuthoon Police Station, Madurai',
+      stationCode: 'TN-MDU-VLK',
+      registrationDate: '2026-08-14',
+      registrationTime: '08:15:00',
+      offenceSections: [
+        'BNS 331(4) / IPC 457 (Lurking House-trespass / Night Burglary)',
+        'BNS 305 / IPC 380 (Theft in Dwelling / Commercial Building)',
+        'BNS 317(2) / IPC 411 (Dishonestly Receiving Stolen Property)',
+      ],
+      ipcSectionsEquivalent: ['IPC 457', 'IPC 380', 'IPC 411'],
       complainant: {
-        name: 'Federal Bank Regional Security Manager',
-        contact: '+91 94471 88921',
-        address: 'Marine Drive Branch, Kochi - 682031',
-        identification: 'Bank Official ID: FB-SEC-44',
+        name: 'M. Somasundaram Chettiar (Proprietor)',
+        contact: '+91 94431 40912',
+        address: 'Muthulakshmi Jewellers, South Avani Moola Street, Madurai - 625001',
+        identification: 'GSTIN: 33AAACM4910K1Z9',
       },
       accused: [
         {
-          name: 'Anish Varma',
-          alias: 'Kochi Anish',
-          status: 'In Custody',
-          details: 'Operated mule bank accounts laundering ₹42,50,000 from interstate cyber phishing.',
+          name: 'Selvam @ Pamban Selvam',
+          alias: 'Pamban',
+          status: 'Absconding',
+          details: 'Habitual night burglar with past record in Virudhunagar & Dindigul.',
+        },
+        {
+          name: 'Murugan (Apprentice/Lookout)',
+          alias: 'Chinna',
+          status: 'Identified',
+          details: 'Spotted on ANPR surveillance at Kappalur Toll Plaza riding Yamaha FZ.',
         },
       ],
-      incidentDate: '2026-08-01 16:45:00',
-      incidentLocation: 'Marine Drive Commercial Complex, MG Road, Ernakulam, Kochi',
-      gpsCoordinates: { lat: 9.9816, lng: 76.2764 },
-      briefDescription: 'High-volume cyber fraud mule network operating fake call centers in Ernakulam.',
-      investigatingOfficerId: 'KL-INSP-1092',
-      investigatingOfficerName: 'Sub-Inspector F. Joseph',
+      incidentDate: '2026-08-13 03:20:00',
+      incidentLocation: 'Muthulakshmi Jewellers, South Avani Moola Street, Madurai',
+      gpsCoordinates: { lat: 9.9195, lng: 78.1198 },
+      briefDescription: 'Night break-in and burglary of jewelry store near Meenakshi Amman Temple. Rolling shutter lock cut using industrial bolt cutter. Gold ornaments worth ₹48 Lakhs and cash stolen.',
+      investigatingOfficerId: 'OFF-TN-0482',
+      investigatingOfficerName: 'Inspector K. Senthil Kumar',
       status: 'UNDER_INVESTIGATION',
-      chargesheetDeadline: '2026-10-30',
-      daysRemainingForChargesheet: 54,
+      chargesheetDeadline: '2026-11-12',
+      daysRemainingForChargesheet: 76,
+    },
+    {
+      caseId: 'KL-TVM-2026-001087',
+      firNumber: 'FIR No. 94/2026',
+      policeStation: 'Fort Police Station, Thiruvananthapuram City',
+      stationCode: 'KL-TVM-FRT',
+      registrationDate: '2026-07-28',
+      registrationTime: '06:45:00',
+      offenceSections: [
+        'BNS 103(1) / IPC 302 (Punishment for Murder)',
+        'BNS 238 / IPC 201 (Causing Disappearance of Evidence of Offence)',
+        'Arms Act Sec 25/27',
+      ],
+      ipcSectionsEquivalent: ['IPC 302', 'IPC 201'],
+      complainant: {
+        name: 'Babu K. (Timber Yard Watchman)',
+        contact: '+91 94472 88102',
+        address: 'Quarters No. 8, Chalakkuzhi Lane, Fort, Thiruvananthapuram - 695023',
+        identification: 'Aadhaar XXXX-XXXX-9102',
+      },
+      accused: [
+        {
+          name: 'Pradeep @ Katta Pradeep',
+          alias: 'Katta Pradeep',
+          status: 'In Custody',
+          details: 'Main suspect apprehended near Kollam bypass checkpost with victim phone.',
+        },
+      ],
+      incidentDate: '2026-07-27 19:15:00',
+      incidentLocation: 'Lakshmi Timber Depot, Chalakkuzhi, Fort PS Limits, Thiruvananthapuram',
+      gpsCoordinates: { lat: 8.4822, lng: 76.9458 },
+      briefDescription: 'Homicide of timber merchant in office room during evening hours following dispute over timber consignment payments. Blunt force trauma with iron crowbar.',
+      investigatingOfficerId: 'OFF-TN-0482',
+      investigatingOfficerName: 'Inspector K. Senthil Kumar',
+      status: 'UNDER_INVESTIGATION',
+      chargesheetDeadline: '2026-10-26',
+      daysRemainingForChargesheet: 59,
     },
   ];
-
-  seedCases.forEach((c) => {
-    vault.cases[c.caseId] = c;
-  });
 
   // Seed Actual Evidence Files Stored In Database
   const initialEvidence = [
     {
       id: 'EVD-TN-004812-001',
       caseId: 'TN-CHN-2026-004812',
-      title: 'ATM CCTV Footage Frame - SBI Usman Road Kiosk',
+      title: 'ATM CCTV Footage Frame - Axis Bank Kodambakkam Kiosk',
       category: 'IMAGE' as const,
-      fileName: 'sbi_atm_kiosk_cctv_1015am.jpg',
+      fileName: 'axis_atm_kiosk_cctv_1205pm.jpg',
       mimeType: 'image/jpeg',
-      rawText: 'CCTV SCREENSHOT RECORD: Camera #02 SBI Usman Road ATM. Timestamp: 2026-08-08 10:15:32 IST. Accused wearing black jacket and blue helmet, debit card insertion, withdrawal amount ₹1,80,000.',
-      tags: ['CCTV', 'ATM', 'Accused', 'Usman Road', 'Card Cloning'],
+      rawText: 'CCTV Camera 02 (ATM Foyer): 08-08-2026 12:05:42 PM - Individual wearing black helmet and green striped shirt withdraws ₹50,000 cash in two tranches using Debit Card ending 4911. Leaves on motorcycle TN-09-CB-4491.',
+      tags: ['CCTV Video', 'ATM Withdrawal', 'Facial Footage', 'Vehicle Sighting'],
       gpsLocation: {
-        latitude: 13.0405,
-        longitude: 80.2337,
-        addressName: 'SBI ATM, Usman Road, T. Nagar, Chennai - 600017',
+        latitude: 13.0518,
+        longitude: 80.2241,
+        addressName: 'Axis Bank ATM, Kodambakkam High Rd, Chennai',
         accuracyMeters: 4.5,
       },
-      officerId: 'TN-INSP-4081',
-      officerName: 'Inspector K. Ramanathan',
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
       deviceInfo: 'Dahua NVR 4K Forensic Export / USB Hash Sealed',
     },
     {
@@ -292,57 +331,256 @@ export function initializeSecureDatabase() {
       category: 'DIGITAL_RECORD' as const,
       fileName: 'airtel_cdr_suspect_tower_dump.csv',
       mimeType: 'text/csv',
-      rawText: 'MSISDN: +91 98402 99182, IMEI: 864921049281729, Tower ID: CHN-TNG-401 (Kodambakkam-Usman Rd Border), Time: 2026-08-08 10:14:11 to 10:22:45 IST. Inbound call from +91 94451 00293.',
+      rawText: 'MSISDN: +91 98401 22941, IMEI: 864921049281729, Tower ID: CHN-KOD-041 (Kodambakkam Arcot Road), Time: 2026-08-08 10:30:11 to 12:45:00 IST. Repeated voice calls with victim +91 98402 11982.',
       tags: ['CDR', 'Telecom', 'Cell Tower', 'IMEI', 'Airtel'],
       gpsLocation: {
-        latitude: 13.0452,
-        longitude: 80.2301,
-        addressName: 'Kodambakkam Main Road Cell Tower #401, Chennai',
+        latitude: 13.0531,
+        longitude: 80.2260,
+        addressName: 'Kodambakkam Arcot Road Cell Tower #041, Chennai',
         accuracyMeters: 15.0,
       },
-      officerId: 'TN-INSP-4081',
-      officerName: 'Inspector K. Ramanathan',
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
       deviceInfo: 'CCTNS Telecom Intercept Node / Chennai City Police',
     },
     {
       id: 'EVD-TN-004812-003',
       caseId: 'TN-CHN-2026-004812',
-      title: 'Seized Vehicle Forensic Mahazar - Yamaha FZ TN-09-CB-4491',
+      title: 'Bank Statement & RTGS Fraud Audit Trail - Axis Bank',
       category: 'DOCUMENT' as const,
-      fileName: 'vehicle_seizure_mahazar_sec105.pdf',
+      fileName: 'axis_bank_mule_rtgs_trail.pdf',
       mimeType: 'application/pdf',
-      rawText: 'BNSS Section 105 Seizure Mahazar: Yamaha FZ motorcycle registered TN-09-CB-4491. Seized from Guindy Industrial Estate parking. Chassis No: ME4RG0819K1928, Engine No: G3J2E99182. 2 helmet visors recovered.',
-      tags: ['Seizure', 'Vehicle', 'Yamaha FZ', 'Guindy', 'BNSS 105'],
+      rawText: 'Axis Bank Account #921020048911221 held in name of Praveen Kumar. RTGS Credit of ₹14,50,000 received on 08-08-2026 at 11:22 AM from complainant V. Sundaram. Immediate ATM and IMPS splits executed within 40 minutes.',
+      tags: ['Bank Statement', 'RTGS', 'Mule Account', 'Cyber Fraud'],
       gpsLocation: {
-        latitude: 13.0067,
-        longitude: 80.2025,
-        addressName: 'Guindy Industrial Estate 3rd Cross, Chennai',
-        accuracyMeters: 8.0,
-      },
-      officerId: 'TN-INSP-4081',
-      officerName: 'Inspector K. Ramanathan',
-      deviceInfo: 'Field Tablet Panasonic Toughbook / eSakshya App',
-    },
-    {
-      id: 'EVD-KL-001290-001',
-      caseId: 'KL-EKM-2026-001290',
-      title: 'Mule Bank Ledger Statements - Marine Drive Branch',
-      category: 'FORENSIC_REPORT' as const,
-      fileName: 'federal_bank_mule_statement_aug2026.pdf',
-      mimeType: 'application/pdf',
-      rawText: 'Federal Bank Account #1481029381920 held by Anish Varma. Total credits ₹42,50,000 through UPI batch transfers from 18 distinct victim accounts across Tamil Nadu & Kerala.',
-      tags: ['Banking', 'UPI', 'Cyber Phishing', 'Kochi', 'Mule Account'],
-      gpsLocation: {
-        latitude: 9.9816,
-        longitude: 76.2764,
-        addressName: 'Federal Bank, Marine Drive, MG Road, Ernakulam, Kochi',
+        latitude: 13.0418,
+        longitude: 80.2342,
+        addressName: 'Axis Bank Regional Clearing Hub, Chennai',
         accuracyMeters: 5.0,
       },
-      officerId: 'KL-INSP-1092',
-      officerName: 'Sub-Inspector F. Joseph',
-      deviceInfo: 'State Forensic Science Lab (SFSL) Thiruvananthapuram',
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
+      deviceInfo: 'Axis Bank AML Vigilance Portal Export',
+    },
+    {
+      id: 'EVD-TN-004812-004',
+      caseId: 'TN-CHN-2026-004812',
+      title: 'Seized Samsung S21 Device & SIM Packet (eSakshya SID Verified)',
+      category: 'IMAGE' as const,
+      fileName: 'Seizure_Item_eSakshya_SID_489102.jpg',
+      mimeType: 'image/jpeg',
+      rawText: 'eSakshya Digital Evidence Packet SID-TN-2026-88129 | Seized from room of accused Dinesh | Samsung Galaxy S21 with SIM 9840122941 inserted | 3 ATM cards recovered including Axis Bank Card 4911.',
+      tags: ['eSakshya SID', 'Mobile Seizure', 'SIM Recovery', 'ATM Cards'],
+      gpsLocation: {
+        latitude: 13.0531,
+        longitude: 80.2260,
+        addressName: 'Arcot Road Residence, Kodambakkam, Chennai',
+        accuracyMeters: 6.0,
+      },
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
+      deviceInfo: 'eSakshya Field Terminal #TN-882',
+    },
+    // Case 2: Madurai Burglary
+    {
+      id: 'EVD-TN-002194-001',
+      caseId: 'TN-MDU-2026-002194',
+      title: 'Crime Scene Fingerprint & Lock Cutter Forensic Analysis',
+      category: 'FORENSIC_REPORT' as const,
+      fileName: 'Forensic_Report_Madurai_FSL_882.pdf',
+      mimeType: 'application/pdf',
+      rawText: 'Tamil Nadu Forensic Sciences Department: Latent palm print identified on showroom cash locker matches criminal record database print of Selvam (FPR-MDU-19984). Lock shackle cut using 18-inch industrial bolt cutter with diamond grade teeth.',
+      tags: ['FSL Forensic', 'Fingerprints', 'Lock Cutter', 'Physical Evidence'],
+      gpsLocation: {
+        latitude: 9.9195,
+        longitude: 78.1198,
+        addressName: 'South Avani Moola St, Madurai - 625001',
+        accuracyMeters: 4.0,
+      },
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
+      deviceInfo: 'State Forensic Science Lab (FSL Madurai)',
+    },
+    {
+      id: 'EVD-TN-002194-002',
+      caseId: 'TN-MDU-2026-002194',
+      title: 'Toll Plaza ANPR Camera Log (Kappalur Toll, Madurai Outskirts)',
+      category: 'IMAGE' as const,
+      fileName: 'ANPR_Kappalur_Toll_TN58BQ9921.jpg',
+      mimeType: 'image/jpeg',
+      rawText: 'Kappalur Toll ANPR: Vehicle TN-58-BQ-9921 (Yamaha FZ Red) passed Southbound Lane 4 on 13-08-2026 at 03:42 AM. Rider carrying large black backpack with heavy load.',
+      tags: ['ANPR Vehicle', 'Toll CCTV', 'Vehicle Movement', 'Escape Route'],
+      gpsLocation: {
+        latitude: 9.8315,
+        longitude: 78.0210,
+        addressName: 'Kappalur Toll Plaza, NH 44, Madurai',
+        accuracyMeters: 3.5,
+      },
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
+      deviceInfo: 'NHAI ANPR Database Link',
+    },
+    {
+      id: 'EVD-TN-002194-003',
+      caseId: 'TN-MDU-2026-002194',
+      title: 'Showroom Alley CCTV Footage (03:15 AM Rear Break-in)',
+      category: 'VIDEO' as const,
+      fileName: 'Alley_CCTV_SouthAvani_0315AM.mp4',
+      mimeType: 'video/mp4',
+      rawText: 'Rear camera captures masked individual forcing rear iron shutter at 03:15 AM with bolt cutter, entering store room, leaving at 03:32 AM with heavy sack matching bike rider backpack.',
+      tags: ['CCTV Video', 'Break-in', 'Shutter Force', 'Madurai'],
+      gpsLocation: {
+        latitude: 9.9195,
+        longitude: 78.1198,
+        addressName: 'South Avani Moola St, Madurai',
+        accuracyMeters: 5.0,
+      },
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
+      deviceInfo: 'Shop Security DVR Export',
+    },
+    {
+      id: 'EVD-TN-002194-004',
+      caseId: 'TN-MDU-2026-002194',
+      title: 'Seizure Mahazar of Recovered 450g Gold Ornaments & Cash',
+      category: 'DOCUMENT' as const,
+      fileName: 'Gold_Seizure_Mahazar_Sec105_BNSS.pdf',
+      mimeType: 'application/pdf',
+      rawText: 'Recovery under Section 23 BSA / Section 27 Evidence Act: 450g 22-karat gold necklaces and bangles bearing Muthulakshmi Jewellers hallmark stamps recovered from concealed compartment in hideout.',
+      tags: ['Gold Seizure', 'Mahazar', 'Panchas', 'Recovery', 'BNSS 105'],
+      gpsLocation: {
+        latitude: 9.5872,
+        longitude: 77.9578,
+        addressName: 'Suspect Hideout, Virudhunagar Outskirts',
+        accuracyMeters: 6.0,
+      },
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
+      deviceInfo: 'Field Tablet / eSakshya Mahazar Portal',
+    },
+    // Case 3: Thiruvananthapuram Timber Homicide
+    {
+      id: 'EVD-KL-001087-001',
+      caseId: 'KL-TVM-2026-001087',
+      title: 'Post-Mortem Medical Report (Medical College Hospital TVM)',
+      category: 'FORENSIC_REPORT' as const,
+      fileName: 'PostMortem_Report_MCH_TVM_94.pdf',
+      mimeType: 'application/pdf',
+      rawText: 'Post-Mortem Examination No. PM-TVM-2026-441: Ante-mortem blunt force cranial trauma caused by heavy cylindrical iron instrument. Time of death estimated between 18:00 and 19:30 on 27-07-2026. Blood group O-positive.',
+      tags: ['Autopsy', 'Forensic', 'Head Injury', 'Medical Evidence', 'BSA 63'],
+      gpsLocation: {
+        latitude: 8.5241,
+        longitude: 76.9366,
+        addressName: 'Govt Medical College, Medical College PO, Thiruvananthapuram',
+        accuracyMeters: 4.0,
+      },
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
+      deviceInfo: 'Forensic Medicine Department, MCH Thiruvananthapuram',
+    },
+    {
+      id: 'EVD-KL-001087-002',
+      caseId: 'KL-TVM-2026-001087',
+      title: 'Murder Weapon (Heavy Iron Crowbar) Recovery Mahazar',
+      category: 'DOCUMENT' as const,
+      fileName: 'Weapon_Recovery_Mahazar_Sec23_BSA.pdf',
+      mimeType: 'application/pdf',
+      rawText: 'Section 23 BSA Recovery Mahazar: Heavy iron crowbar (2.8 kg, 3.2 feet) with rusted head recovered from marshy drainage canal 400m behind timber depot based on voluntary confession of accused Pradeep in presence of independent witnesses.',
+      tags: ['Weapon Recovery', 'Crowbar', 'Mahazar', 'Confession BSA 23'],
+      gpsLocation: {
+        latitude: 8.4802,
+        longitude: 76.9441,
+        addressName: 'Drainage Canal, Killi River Canal, Fort Limits, Thiruvananthapuram',
+        accuracyMeters: 8.0,
+      },
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
+      deviceInfo: 'eSakshya Digital Camera System',
+    },
+    {
+      id: 'EVD-KL-001087-003',
+      caseId: 'KL-TVM-2026-001087',
+      title: 'Blood-Stained Cotton Shirt Seizure & Serology Report',
+      category: 'IMAGE' as const,
+      fileName: 'Blood_Stained_Shirt_Forensic_Photo.jpg',
+      mimeType: 'image/jpeg',
+      rawText: 'Chemical Examiner Serology Certificate: Human blood detected on right sleeve and collar of blue checks shirt. Serological analysis confirms blood group O-positive matching deceased timber merchant.',
+      tags: ['Serology', 'DNA Blood', 'Cloth Seizure', 'Physical Evidence'],
+      gpsLocation: {
+        latitude: 8.4822,
+        longitude: 76.9458,
+        addressName: 'Timber Depot Office, Chalakkuzhi, Fort, Thiruvananthapuram',
+        accuracyMeters: 5.0,
+      },
+      officerId: 'OFF-TN-0482',
+      officerName: 'Inspector K. Senthil Kumar',
+      deviceInfo: 'State Forensic Science Laboratory, Thiruvananthapuram',
     },
   ];
+
+  if (fs.existsSync(DB_FILE)) {
+    try {
+      const content = fs.readFileSync(DB_FILE, 'utf8');
+      vault = JSON.parse(content);
+      console.log(`[SecureDB] Loaded ${Object.keys(vault.evidence).length} evidence items and ${Object.keys(vault.cases).length} cases from ${DB_FILE}`);
+      
+      // Ensure all seed cases exist in the loaded database
+      let dbUpdated = false;
+      seedCases.forEach((c) => {
+        if (!vault.cases[c.caseId]) {
+          vault.cases[c.caseId] = c;
+          dbUpdated = true;
+        }
+      });
+
+      // Ensure all seed evidence exist in the loaded database
+      initialEvidence.forEach((item) => {
+        if (!vault.evidence[item.id]) {
+          const rawBuffer = Buffer.from(item.rawText, 'utf8');
+          const hash = computeSha256(rawBuffer);
+          const encrypted = encryptData(rawBuffer);
+
+          const storageFileName = `${item.id}.enc`;
+          const storagePath = path.join(EVIDENCE_FILES_DIR, storageFileName);
+          if (!fs.existsSync(storagePath)) {
+            fs.writeFileSync(storagePath, JSON.stringify(encrypted), 'utf8');
+          }
+
+          vault.evidence[item.id] = {
+            id: item.id,
+            caseId: item.caseId,
+            title: item.title,
+            category: item.category,
+            fileName: item.fileName,
+            fileSizeBytes: rawBuffer.length,
+            mimeType: item.mimeType,
+            sha256Hash: hash,
+            currentHash: hash,
+            isTampered: false,
+            uploadTimestamp: new Date().toISOString(),
+            uploadedByOfficerId: item.officerId,
+            uploadedByOfficerName: item.officerName,
+            deviceInfo: item.deviceInfo,
+            gpsLocation: item.gpsLocation,
+            encryptionStatus: 'AES-256-ENCRYPTED',
+            cipherAlgorithm: 'AES-256-GCM',
+            tags: item.tags,
+            extractedText: item.rawText,
+            sourceSystem: 'DIRECT_UPLOAD',
+            storageFilePath: storageFileName,
+          };
+          dbUpdated = true;
+        }
+      });
+
+      if (dbUpdated) {
+        persistVaultToDisk();
+      }
+      return;
+    } catch (err) {
+      console.warn('[SecureDB] Error parsing existing db, re-seeding:', err);
+    }
+  }
 
   initialEvidence.forEach((item) => {
     const rawBuffer = Buffer.from(item.rawText, 'utf8');
@@ -681,6 +919,8 @@ export function storeEvidence(
     cipherAlgorithm: 'AES-256-GCM',
     tags: evidenceData.tags || [],
     extractedText: evidenceData.extractedText || '',
+    ocrConfidence: evidenceData.ocrConfidence || (evidenceData.extractedText ? 0.98 : undefined),
+    entitiesExtracted: evidenceData.entitiesExtracted || [],
     sourceSystem: evidenceData.sourceSystem || 'DIRECT_UPLOAD',
     storageFilePath: storageFileName,
   };
@@ -688,6 +928,22 @@ export function storeEvidence(
   vault.evidence[id] = record;
   persistVaultToDisk();
   return record;
+}
+
+// Update existing evidence record fields (e.g. OCR text or extracted entities)
+export function updateEvidenceRecord(id: string, updates: Partial<StoredEvidenceRecord>): StoredEvidenceRecord | null {
+  const existing = vault.evidence[id];
+  if (!existing) return null;
+
+  vault.evidence[id] = {
+    ...existing,
+    ...updates,
+    id: existing.id, // Immutable ID
+    sha256Hash: existing.sha256Hash, // Immutable hash unless tampered
+  };
+
+  persistVaultToDisk();
+  return vault.evidence[id];
 }
 
 // Tamper simulation toggle for testing tamper-detection
@@ -770,5 +1026,46 @@ export function getBlockchainBlocks(): any[] {
 
 export function addBlockchainBlock(block: any) {
   vault.blockchainBlocks.unshift(block);
+  persistVaultToDisk();
+}
+
+export function recordAuditTransaction(tx: any) {
+  if (!vault.blockchainBlocks || vault.blockchainBlocks.length === 0) {
+    vault.blockchainBlocks = [
+      {
+        blockNumber: 1,
+        blockHash: '0x' + crypto.randomBytes(32).toString('hex'),
+        previousHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        merkleRoot: '0x' + crypto.randomBytes(32).toString('hex'),
+        timestamp: new Date().toISOString(),
+        transactionsCount: 1,
+        channelId: 'police-consortium-chn',
+        organization: 'Tamil Nadu Police Consortium Node',
+        transactions: [tx],
+      },
+    ];
+  } else {
+    const topBlock = vault.blockchainBlocks[0];
+    if (topBlock.transactions && topBlock.transactions.length >= 10) {
+      const newBlockNumber = (topBlock.blockNumber || 1) + 1;
+      const newBlock = {
+        blockNumber: newBlockNumber,
+        blockHash: '0x' + crypto.randomBytes(32).toString('hex'),
+        previousHash: topBlock.blockHash,
+        merkleRoot: '0x' + crypto.randomBytes(32).toString('hex'),
+        timestamp: tx.timestamp || new Date().toISOString(),
+        transactionsCount: 1,
+        channelId: 'police-consortium-chn',
+        organization: 'Tamil Nadu Police Consortium Node',
+        transactions: [tx],
+      };
+      vault.blockchainBlocks.unshift(newBlock);
+    } else {
+      if (!topBlock.transactions) topBlock.transactions = [];
+      topBlock.transactions.unshift(tx);
+      topBlock.transactionsCount = topBlock.transactions.length;
+      topBlock.merkleRoot = '0x' + crypto.randomBytes(32).toString('hex');
+    }
+  }
   persistVaultToDisk();
 }

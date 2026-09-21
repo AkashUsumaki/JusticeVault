@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Boxes, 
   ShieldCheck, 
@@ -24,6 +24,7 @@ import {
 import { BlockchainBlock, BlockchainTransaction, EvidenceItem, FIRDetails, LanguageCode, OfficerUser } from '../types';
 import { exportSection65BCertificate } from '../services/cryptoUtils';
 import { translations } from '../translations/i18n';
+import { BiometricSecurityModal } from './BiometricSecurityModal';
 
 interface BlockchainAuditTrailProps {
   blocks: BlockchainBlock[];
@@ -32,6 +33,7 @@ interface BlockchainAuditTrailProps {
   currentOfficer: OfficerUser;
   currentLang: LanguageCode;
   onMineBlock?: () => void;
+  onLogBlockchainEvent?: (action: any, details: string, evidenceId?: string, evidenceHash?: string) => void;
 }
 
 export const BlockchainAuditTrail: React.FC<BlockchainAuditTrailProps> = ({
@@ -41,20 +43,65 @@ export const BlockchainAuditTrail: React.FC<BlockchainAuditTrailProps> = ({
   currentOfficer,
   currentLang,
   onMineBlock,
+  onLogBlockchainEvent,
 }) => {
   const t = translations[currentLang];
   const [selectedAction, setSelectedAction] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTx, setSelectedTx] = useState<BlockchainTransaction | null>(null);
   const [activeTab, setActiveTab] = useState<'TRANSACTIONS' | 'BLOCKS'>('TRANSACTIONS');
+  const [filterByCurrentFIR, setFilterByCurrentFIR] = useState(true);
+
+  // Biometric Security Gatekeeper State
+  const [biometricModal, setBiometricModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onSuccess: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onSuccess: () => {},
+  });
+
+  const requestBiometricClearance = (title: string, description: string, onSuccess: () => void) => {
+    setBiometricModal({
+      isOpen: true,
+      title,
+      description,
+      onSuccess,
+    });
+  };
 
   // Verification state
   const [isVerifyingChain, setIsVerifyingChain] = useState(false);
   const [chainVerifiedSuccess, setChainVerifiedSuccess] = useState<boolean | null>(null);
+  const [dbTxs, setDbTxs] = useState<BlockchainTransaction[]>([]);
 
-  const allTransactions = blocks.flatMap((b) => b.transactions);
+  useEffect(() => {
+    fetch('/api/database/transactions')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.transactions && Array.isArray(data.transactions)) {
+          setDbTxs(data.transactions);
+        }
+      })
+      .catch((err) => console.warn('Could not fetch db transactions:', err));
+  }, []);
+
+  const blockTxs = blocks.flatMap((b) => b.transactions);
+  const txMap = new Map<string, BlockchainTransaction>();
+  dbTxs.forEach((tx) => txMap.set(tx.txId || tx.id, tx));
+  blockTxs.forEach((tx) => txMap.set(tx.txId || tx.id, tx));
+  const allTransactions = Array.from(txMap.values()).sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 
   const filteredTransactions = allTransactions.filter((tx) => {
+    if (filterByCurrentFIR && tx.caseId && tx.caseId !== caseItem.caseId) {
+      return false;
+    }
     if (selectedAction !== 'ALL' && tx.action !== selectedAction) {
       return false;
     }
@@ -94,20 +141,34 @@ export const BlockchainAuditTrail: React.FC<BlockchainAuditTrailProps> = ({
   };
 
   const handleDownloadCourtCertificate = (evidenceItem: EvidenceItem) => {
-    exportSection65BCertificate(
-      evidenceItem,
-      {
-        firNumber: caseItem.firNumber,
-        policeStation: caseItem.policeStation,
-        caseId: caseItem.caseId,
-      },
-      {
-        name: currentOfficer.name,
-        badgeNumber: currentOfficer.badgeNumber,
-        designation: currentOfficer.designation,
-        department: currentOfficer.department,
-      },
-      allTransactions
+    requestBiometricClearance(
+      'Section 65B Certificate Court Generation',
+      `Officer biometric verification required to generate and cryptographically seal legal Section 65B (BSA Section 63) electronic evidence certificate for FIR ${caseItem.firNumber}`,
+      () => {
+        exportSection65BCertificate(
+          evidenceItem,
+          {
+            firNumber: caseItem.firNumber,
+            policeStation: caseItem.policeStation,
+            caseId: caseItem.caseId,
+          },
+          {
+            name: currentOfficer.name,
+            badgeNumber: currentOfficer.badgeNumber,
+            designation: currentOfficer.designation,
+            department: currentOfficer.department,
+          },
+          allTransactions
+        );
+        if (onLogBlockchainEvent) {
+          onLogBlockchainEvent(
+            'CHAIN_OF_CUSTODY_EXPORT',
+            `Court-Admissible BSA Sec 63 / Sec 65B Certificate generated for ${evidenceItem.title}`,
+            evidenceItem.id,
+            evidenceItem.sha256Hash
+          );
+        }
+      }
     );
   };
 
@@ -244,15 +305,30 @@ export const BlockchainAuditTrail: React.FC<BlockchainAuditTrailProps> = ({
         <>
           {/* Search & Action Filters */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-3" />
-              <input
-                type="text"
-                placeholder="Search Tx Hash, Officer Badge, Details..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-[#0a0c0f] border border-zinc-800 rounded text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
-              />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-72">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  placeholder="Search Tx Hash, Officer Badge, Details..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-[#0a0c0f] border border-zinc-800 rounded text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setFilterByCurrentFIR(!filterByCurrentFIR)}
+                className={`px-3 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition border whitespace-nowrap ${
+                  filterByCurrentFIR
+                    ? 'bg-blue-600/15 border-blue-500/40 text-blue-300 shadow-sm'
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                }`}
+                title="Toggle scoping to active FIR"
+              >
+                <Filter className="w-3.5 h-3.5" />
+                <span>{filterByCurrentFIR ? `FIR ${caseItem.firNumber}` : 'All Cases'}</span>
+              </button>
             </div>
 
             <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
@@ -435,6 +511,17 @@ export const BlockchainAuditTrail: React.FC<BlockchainAuditTrailProps> = ({
           </div>
         </div>
       )}
+
+      {/* Biometric Security Clearance Gatekeeper Modal */}
+      <BiometricSecurityModal
+        isOpen={biometricModal.isOpen}
+        onClose={() => setBiometricModal((prev) => ({ ...prev, isOpen: false }))}
+        onSuccess={biometricModal.onSuccess}
+        officer={currentOfficer}
+        actionTitle={biometricModal.title}
+        actionDescription={biometricModal.description}
+        onLogBlockchainEvent={onLogBlockchainEvent}
+      />
 
     </div>
   );

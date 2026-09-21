@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Sparkles, 
   Mic, 
@@ -15,14 +15,14 @@ import {
   ArrowRight, 
   Clock, 
   User, 
-  ChevronRight,
-  ExternalLink,
-  Download,
-  Share2,
-  RefreshCw,
-  Layers,
-  BookOpen,
-  Volume2
+  ChevronRight, 
+  ExternalLink, 
+  Download, 
+  Share2, 
+  RefreshCw, 
+  Layers, 
+  BookOpen, 
+  Volume2 
 } from 'lucide-react';
 import { 
   FIRDetails, 
@@ -34,6 +34,7 @@ import {
 } from '../types';
 import { verifyStatementAI, transcribeAudioAI } from '../services/api';
 import { translations } from '../translations/i18n';
+import { BiometricSecurityModal } from './BiometricSecurityModal';
 
 interface AIStatementVerifierProps {
   caseItem: FIRDetails;
@@ -62,33 +63,125 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
   const [speechFeedback, setSpeechFeedback] = useState<string | null>(null);
   const speechRecognitionRef = useRef<any>(null);
 
+  // Biometric Security Gatekeeper State
+  const [biometricModal, setBiometricModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onSuccess: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onSuccess: () => {},
+  });
+
+  const requestBiometricClearance = (title: string, description: string, onSuccess: () => void) => {
+    setBiometricModal({
+      isOpen: true,
+      title,
+      description,
+      onSuccess,
+    });
+  };
+
   // Verification report state
   const [report, setReport] = useState<StatementVerificationReport | null>(null);
 
-  // Preset statements for instant demonstration
-  const presets = [
-    {
-      title: 'Suspect Dinesh Alibi (English) - Contradicted by CDR & CCTV',
-      lang: 'en' as LanguageCode,
-      speaker: 'Dinesh Kumar (Prime Suspect)',
-      role: 'SUSPECT' as const,
-      text: `On the morning of August 8th between 10:00 AM and 1:00 PM, I was completely at my residence in Tambaram taking rest. I never visited Kodambakkam nor did I operate any Yamaha FZ motorcycle with registration TN-09-CB-4491. I have never received any Rs. 4,50,000 cash transfer from Suresh nor do I know the phone number +91 98401 22910.`
-    },
-    {
-      title: 'Suspect Alibi in Tamil (தமிழ்) - Cross-examine Alibi',
-      lang: 'ta' as LanguageCode,
-      speaker: 'தினேஷ் குமார் (சந்தேக நபர்)',
-      role: 'SUSPECT' as const,
-      text: `நான் சம்பவம் நடந்த அன்று காலை பத்து மணி முதல் மதியம் ஒரு மணி வரை தாம்பரத்தில் உள்ள என் அம்மா வீட்டில் இருந்தேன். நான் எந்த பைக்கும் ஓட்டவில்லை. கோடம்பாக்கம் ஏடிஎம் பக்கத்தில் நான் போகவே இல்லை. எனக்கு இந்த நான்கு லட்ச ரூபாய் பணப்பரிவர்த்தனை பற்றி எதுவும் தெரியாது.`
-    },
-    {
-      title: 'Witness Statement in Malayalam (മലയാളം) - Financial Mule Network',
-      lang: 'ml' as LanguageCode,
-      speaker: 'വിഷ്ണു നായർ (സാക്ഷി)',
-      role: 'WITNESS' as const,
-      text: `ഓഗസ്റ്റ് 8 ന് ഉച്ചയ്ക്ക് 12 മണിക്ക് കോടമ്പാക്കത്ത് വെച്ച് ദിനേശ് എന്ന വ്യക്തി ഒരു കറുത്ത ബൈക്കിൽ വന്ന് കവറിൽ പണം നൽകുന്നത് ഞാൻ കണ്ടിരുന്നു. ആ ബൈക്കിന്റെ നമ്പർ TN-09 എന്ന രീതിയിൽ ആയിരുന്നു.`
+  // Dynamic Case-Scoped Presets
+  const presets = useMemo(() => {
+    if (caseItem.caseId === 'TN-MDU-2026-002194') {
+      return [
+        {
+          title: 'Accused Muthupandi Alibi - Gold Melting Racket (English)',
+          lang: 'en' as LanguageCode,
+          speaker: 'Muthupandi S (Accused / Goldsmith)',
+          role: 'SUSPECT' as const,
+          text: `On October 14th between 4:00 PM and 8:00 PM, I was never at the South Gate workshop. I have never operated any induction smelting kiln nor did I purchase copper-gold flux from Rajapalayam. All gold bars in locker B-4 are 100% 22-karat certified with authentic BIS hallmark documentation.`,
+        },
+        {
+          title: 'Witness Statement - South Gate Delivery (Tamil)',
+          lang: 'ta' as LanguageCode,
+          speaker: 'கே. வேல்முருகன் (சாட்சி)',
+          role: 'WITNESS' as const,
+          text: `அக்டோபர் 14 மாலை 6:30 மணியளவில் தெற்கு வாசல் பட்டறையில் முத்துப்பாண்டி கனமான இரும்பு பெட்டிகளை ஒரு வாகனத்தில் ஏற்றுவதை நான் நேரில் பார்த்தேன். அவரிடம் தூய தங்கம் எதுவும் இல்லை, அனைத்தும் செம்பு கலந்த போலி நகைகள் என்று தொழிலாளர்கள் பேசிக்கொண்டார்கள்.`,
+        },
+        {
+          title: 'Complainant Bullion Merchant Loss Statement (English)',
+          lang: 'en' as LanguageCode,
+          speaker: 'R. Sundararaman (Complainant)',
+          role: 'COMPLAINANT' as const,
+          text: `I deposited 1,200 grams of pure 99.9% 24k gold bullion with Muthupandi Jewelers for ornament manufacturing on September 28th. On October 14th, metallurgical density testing proved the returned ingots contained over 42% copper alloy with counterfeit BIS hallmarks.`,
+        },
+      ];
+    } else if (caseItem.caseId === 'KL-TVM-2026-001087') {
+      return [
+        {
+          title: 'Suspect Alex Kurian Remote Alibi (English)',
+          lang: 'en' as LanguageCode,
+          speaker: 'Alex Kurian (Network Engineer / Suspect)',
+          role: 'SUSPECT' as const,
+          text: `On November 3rd between 01:00 AM and 05:00 AM, I was asleep at my apartment in Kozhikode. I did not connect to any Technopark Kerala internal VPN nor did I execute any SFTP commands targeting the State Treasury staging gateway.`,
+        },
+        {
+          title: 'Witness Statement in Malayalam (Technopark SysAdmin)',
+          lang: 'ml' as LanguageCode,
+          speaker: 'രേഷ്മ മാത്യു (സിസ്റ്റം അഡ്മിനിസ്ട്രേറ്റർ)',
+          role: 'WITNESS' as const,
+          text: `നവംബർ 3 ന് പുലർച്ചെ 2:15 ന് അലക്സ് കുര്യന്റെ പ്രൈവറ്റ് കീ ഉപയോഗിച്ച് റഷ്യൻ ഐപിയിൽ നിന്ന് സെർവറിലേക്ക് അനധികൃത പ്രവേശനം നടന്നു. ട്രഷറി ഫണ്ട് ട്രാൻസ്ഫർ സ്ക്രിപ്റ്റ് റൺ ചെയ്തത് ഈ അക്കൗണ്ട് വഴിയാണ്.`,
+        },
+        {
+          title: 'Victim Statement - Phishing Credentials Leak (English)',
+          lang: 'en' as LanguageCode,
+          speaker: 'Dr. Reji Varghese (Complainant / Medical Officer)',
+          role: 'VICTIM' as const,
+          text: `I received a spoofed email pretending to be from the Directorate of Health Services requesting mandatory digital token verification. Within 30 minutes of submitting credentials, Rs. 14,80,000 was debited in 4 rapid RTGS transactions without OTP prompt.`,
+        },
+      ];
+    } else {
+      return [
+        {
+          title: 'Suspect Dinesh Alibi (English) - Contradicted by CDR & CCTV',
+          lang: 'en' as LanguageCode,
+          speaker: 'Dinesh Kumar (Prime Suspect)',
+          role: 'SUSPECT' as const,
+          text: `On the morning of August 8th between 10:00 AM and 1:00 PM, I was completely at my residence in Tambaram taking rest. I never visited Kodambakkam nor did I operate any Yamaha FZ motorcycle with registration TN-09-CB-4491. I have never received any Rs. 4,50,000 cash transfer from Suresh nor do I know the phone number +91 98401 22910.`,
+        },
+        {
+          title: 'Suspect Alibi in Tamil (Cross-examine Alibi)',
+          lang: 'ta' as LanguageCode,
+          speaker: 'தினேஷ் குமார் (சந்தேக நபர்)',
+          role: 'SUSPECT' as const,
+          text: `நான் சம்பவம் நடந்த அன்று காலை பத்து மணி முதல் மதியம் ஒரு மணி வரை தாம்பரத்தில் உள்ள என் அம்மா வீட்டில் இருந்தேன். நான் எந்த பைக்கும் ஓட்டவில்லை. கோடம்பாக்கம் ஏடிஎம் பக்கத்தில் நான் போகவே இல்லை. எனக்கு இந்த நான்கு லட்ச ரூபாய் பணப்பரிவர்த்தனை பற்றி எதுவும் தெரியாது.`,
+        },
+        {
+          title: 'Witness Statement in Malayalam - Financial Mule Network',
+          lang: 'ml' as LanguageCode,
+          speaker: 'വിഷ്ണു നായർ (സാക്ഷി)',
+          role: 'WITNESS' as const,
+          text: `ഓഗസ്റ്റ് 8 ന് ഉച്ചയ്ക്ക് 12 മണിക്ക് കോടമ്പാക്കത്ത് വെച്ച് ദിനേശ് എന്ന വ്യക്തി ഒരു കറുത്ത ബൈക്കിൽ വന്ന് കവറിൽ പണം നൽകുന്നത് ഞാൻ കണ്ടിരുന്നു. ആ ബൈക്കിന്റെ നമ്പർ TN-09 എന്ന രീതിയിൽ ആയിരുന്നു.`,
+        },
+      ];
     }
-  ];
+  }, [caseItem.caseId]);
+
+  // Synchronize statement defaults when user switches active FIR Case
+  useEffect(() => {
+    setReport(null);
+    if (caseItem.caseId === 'TN-MDU-2026-002194') {
+      setSpeakerName('Muthupandi S (Accused / Goldsmith)');
+      setSpeakerRole('SUSPECT');
+      setStatementText(`On October 14th between 4:00 PM and 8:00 PM, I was never at the South Gate workshop. I have never operated any induction smelting kiln nor did I purchase copper-gold flux from Rajapalayam. All gold bars in locker B-4 are 100% 22-karat certified with authentic BIS hallmark documentation.`);
+    } else if (caseItem.caseId === 'KL-TVM-2026-001087') {
+      setSpeakerName('Alex Kurian (Network Engineer / Suspect)');
+      setSpeakerRole('SUSPECT');
+      setStatementText(`On November 3rd between 01:00 AM and 05:00 AM, I was asleep at my apartment in Kozhikode. I did not connect to any Technopark Kerala internal VPN nor did I execute any SFTP commands targeting the State Treasury staging gateway.`);
+    } else {
+      setSpeakerName('Dinesh Kumar (Prime Suspect)');
+      setSpeakerRole('SUSPECT');
+      setStatementText(`On the morning of August 8th between 10:00 AM and 1:00 PM, I was completely at my residence in Tambaram taking rest. I never visited Kodambakkam nor did I operate any Yamaha FZ motorcycle with registration TN-09-CB-4491. I have never received any Rs. 4,50,000 cash transfer from Suresh nor do I know the phone number +91 98401 22910.`);
+    }
+  }, [caseItem.caseId]);
 
   const handleApplyPreset = (preset: typeof presets[0]) => {
     setStatementText(preset.text);
@@ -168,10 +261,7 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
     }
   };
 
-  const handleRunVerification = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!statementText.trim()) return;
-
+  const executeVerification = async () => {
     setIsVerifying(true);
     setVerifyStep(1);
 
@@ -203,6 +293,17 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
       setIsVerifying(false);
       setVerifyStep(0);
     }
+  };
+
+  const handleRunVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!statementText.trim()) return;
+
+    requestBiometricClearance(
+      'AI Forensic Statement Verification Authorization',
+      `Officer biometric authorization required to invoke neural cross-examination on ${speakerName}'s testimony for FIR ${caseItem.firNumber}`,
+      () => executeVerification()
+    );
   };
 
   const getStatusBadge = (status: StatementClaim['status']) => {
@@ -509,6 +610,17 @@ export const AIStatementVerifier: React.FC<AIStatementVerifierProps> = ({
 
         </div>
       )}
+
+      {/* Biometric Security Clearance Gatekeeper Modal */}
+      <BiometricSecurityModal
+        isOpen={biometricModal.isOpen}
+        onClose={() => setBiometricModal((prev) => ({ ...prev, isOpen: false }))}
+        onSuccess={biometricModal.onSuccess}
+        officer={currentOfficer}
+        actionTitle={biometricModal.title}
+        actionDescription={biometricModal.description}
+        onLogBlockchainEvent={onLogBlockchainEvent}
+      />
 
     </div>
   );

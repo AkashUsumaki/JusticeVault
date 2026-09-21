@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { FIRDetails, InterStationShareRequest, LanguageCode, OfficerUser } from '../types';
 import { translations } from '../translations/i18n';
+import { BiometricSecurityModal } from './BiometricSecurityModal';
 
 interface InterStationSharingProps {
   caseItem: FIRDetails;
@@ -36,35 +37,109 @@ export const InterStationSharing: React.FC<InterStationSharingProps> = ({
   onLogBlockchainEvent,
 }) => {
   const t = translations[currentLang];
+
+  // Biometric Security Gatekeeper State
+  const [biometricModal, setBiometricModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onSuccess: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onSuccess: () => {},
+  });
+
+  const requestBiometricClearance = (title: string, description: string, onSuccess: () => void) => {
+    setBiometricModal({
+      isOpen: true,
+      title,
+      description,
+      onSuccess,
+    });
+  };
   
-  const [activeShares, setActiveShares] = useState<InterStationShareRequest[]>([
-    {
-      id: 'SHR-2026-0091',
-      caseId: caseItem.caseId,
-      sourceStationCode: currentOfficer.stationCode,
-      targetStationCode: 'KL-KTM-01',
-      targetOfficerBadge: 'KL-POL-5510 (Inspector George Mathew)',
-      authorizedByOfficerId: currentOfficer.id,
-      authorizedTimestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
-      expiresAt: new Date(Date.now() + 3600000 * 24 * 6 + 14200000).toISOString(),
-      status: 'ACTIVE',
-      permissions: ['VIEW_EVIDENCE', 'VIEW_AI_REPORTS'],
-      purpose: 'Corroboration of suspect interstate movements across Kottayam and Chennai.',
-    },
-    {
-      id: 'SHR-2026-0042',
-      caseId: caseItem.caseId,
-      sourceStationCode: currentOfficer.stationCode,
-      targetStationCode: 'TN-PROSECUTOR-01',
-      targetOfficerBadge: 'ADV-TN-9902 (Public Prosecutor Anandhi)',
-      authorizedByOfficerId: currentOfficer.id,
-      authorizedTimestamp: new Date(Date.now() - 3600000 * 48).toISOString(),
-      expiresAt: new Date(Date.now() + 3600000 * 24 * 11 + 22400000).toISOString(),
-      status: 'ACTIVE',
-      permissions: ['VIEW_EVIDENCE', 'DOWNLOAD_SECTION_65B', 'VIEW_AI_REPORTS'],
-      purpose: 'Pre-trial discovery bundle preparation for City Sessions Court.',
+  const [activeShares, setActiveShares] = useState<InterStationShareRequest[]>([]);
+
+  // Synchronize shares specifically for the active FIR case
+  useEffect(() => {
+    if (caseItem.caseId === 'TN-MDU-2026-002194') {
+      setActiveShares([
+        {
+          id: 'SHR-MDU-0012',
+          caseId: 'TN-MDU-2026-002194',
+          sourceStationCode: currentOfficer.stationCode,
+          targetStationCode: 'KL-TVM-01',
+          targetOfficerBadge: 'KL-CYBER-8812 (DSP Anitha Nair)',
+          authorizedByOfficerId: currentOfficer.id,
+          authorizedTimestamp: new Date(Date.now() - 3600000 * 12).toISOString(),
+          expiresAt: new Date(Date.now() + 3600000 * 24 * 5).toISOString(),
+          status: 'ACTIVE',
+          permissions: ['VIEW_EVIDENCE', 'VIEW_AI_REPORTS'],
+          purpose: 'Interstate gold smuggling and foundry kiln nexus tracing in Madurai and Palakkad.',
+        },
+        {
+          id: 'SHR-MDU-0034',
+          caseId: 'TN-MDU-2026-002194',
+          sourceStationCode: currentOfficer.stationCode,
+          targetStationCode: 'TN-FSL-CHN',
+          targetOfficerBadge: 'SCI-TN-2201 (Chief Metallurgist Dr. Selvan)',
+          authorizedByOfficerId: currentOfficer.id,
+          authorizedTimestamp: new Date(Date.now() - 3600000 * 36).toISOString(),
+          expiresAt: new Date(Date.now() + 3600000 * 24 * 10).toISOString(),
+          status: 'ACTIVE',
+          permissions: ['VIEW_EVIDENCE', 'DOWNLOAD_SECTION_65B'],
+          purpose: 'Comparative forensic spectroscopy on seized copper-gold alloy ingots.',
+        },
+      ]);
+    } else if (caseItem.caseId === 'KL-TVM-2026-001087') {
+      setActiveShares([
+        {
+          id: 'SHR-TVM-0078',
+          caseId: 'KL-TVM-2026-001087',
+          sourceStationCode: currentOfficer.stationCode,
+          targetStationCode: 'CERT-IN-NDLS',
+          targetOfficerBadge: 'CERT-DIR-09 (Incident Response Unit - New Delhi)',
+          authorizedByOfficerId: currentOfficer.id,
+          authorizedTimestamp: new Date(Date.now() - 3600000 * 18).toISOString(),
+          expiresAt: new Date(Date.now() + 3600000 * 24 * 7).toISOString(),
+          status: 'ACTIVE',
+          permissions: ['VIEW_EVIDENCE', 'VIEW_AI_REPORTS', 'DOWNLOAD_SECTION_65B'],
+          purpose: 'Threat actor IP attribution and reverse DNS analysis with National Cyber Coordination Centre.',
+        },
+      ]);
+    } else {
+      setActiveShares([
+        {
+          id: 'SHR-2026-0091',
+          caseId: caseItem.caseId,
+          sourceStationCode: currentOfficer.stationCode,
+          targetStationCode: 'KL-KTM-01',
+          targetOfficerBadge: 'KL-POL-5510 (Inspector George Mathew)',
+          authorizedByOfficerId: currentOfficer.id,
+          authorizedTimestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
+          expiresAt: new Date(Date.now() + 3600000 * 24 * 6 + 14200000).toISOString(),
+          status: 'ACTIVE',
+          permissions: ['VIEW_EVIDENCE', 'VIEW_AI_REPORTS'],
+          purpose: 'Corroboration of suspect interstate movements across Kottayam and Chennai.',
+        },
+        {
+          id: 'SHR-2026-0042',
+          caseId: caseItem.caseId,
+          sourceStationCode: currentOfficer.stationCode,
+          targetStationCode: 'TN-PROSECUTOR-01',
+          targetOfficerBadge: 'ADV-TN-9902 (Public Prosecutor Anandhi)',
+          authorizedByOfficerId: currentOfficer.id,
+          authorizedTimestamp: new Date(Date.now() - 3600000 * 48).toISOString(),
+          expiresAt: new Date(Date.now() + 3600000 * 24 * 11 + 22400000).toISOString(),
+          status: 'ACTIVE',
+          permissions: ['VIEW_EVIDENCE', 'DOWNLOAD_SECTION_65B', 'VIEW_AI_REPORTS'],
+          purpose: 'Pre-trial discovery bundle preparation for City Sessions Court.',
+        },
+      ]);
     }
-  ]);
+  }, [caseItem.caseId, currentOfficer.stationCode, currentOfficer.id]);
 
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -96,34 +171,56 @@ export const InterStationSharing: React.FC<InterStationSharingProps> = ({
 
   const handleCreateShare = (e: React.FormEvent) => {
     e.preventDefault();
-    const newShare: InterStationShareRequest = {
-      id: `SHR-2026-00${Math.floor(Math.random() * 90) + 10}`,
-      caseId: caseItem.caseId,
-      sourceStationCode: currentOfficer.stationCode,
-      targetStationCode: targetStation,
-      targetOfficerBadge: targetOfficer,
-      authorizedByOfficerId: currentOfficer.id,
-      authorizedTimestamp: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + expiryDays * 24 * 3600 * 1000).toISOString(),
-      status: 'ACTIVE',
-      permissions: allowDownload 
-        ? ['VIEW_EVIDENCE', 'DOWNLOAD_SECTION_65B', 'VIEW_AI_REPORTS']
-        : ['VIEW_EVIDENCE', 'VIEW_AI_REPORTS'],
-      purpose: sharePurpose || 'Inter-agency cross-jurisdiction investigation corroboration.',
-    };
+    requestBiometricClearance(
+      'Authorize Inter-Agency Case Access',
+      `Officer biometric verification required to generate and cryptographically seal discovery token for ${targetOfficer} (${targetStation})`,
+      () => {
+        const newShare: InterStationShareRequest = {
+          id: `SHR-2026-00${Math.floor(Math.random() * 90) + 10}`,
+          caseId: caseItem.caseId,
+          sourceStationCode: currentOfficer.stationCode,
+          targetStationCode: targetStation,
+          targetOfficerBadge: targetOfficer,
+          authorizedByOfficerId: currentOfficer.id,
+          authorizedTimestamp: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + expiryDays * 24 * 3600 * 1000).toISOString(),
+          status: 'ACTIVE',
+          permissions: allowDownload 
+            ? ['VIEW_EVIDENCE', 'DOWNLOAD_SECTION_65B', 'VIEW_AI_REPORTS']
+            : ['VIEW_EVIDENCE', 'VIEW_AI_REPORTS'],
+          purpose: sharePurpose || 'Inter-agency cross-jurisdiction investigation corroboration.',
+        };
 
-    setActiveShares([newShare, ...activeShares]);
-    onLogBlockchainEvent(
-      'INTER_STATION_SHARE',
-      `Authorized time-limited case access token (${newShare.id}) to ${targetOfficer} (${targetStation}) for ${expiryDays} days`
+        setActiveShares([newShare, ...activeShares]);
+        onLogBlockchainEvent(
+          'INTER_STATION_SHARE',
+          `Authorized time-limited case access token (${newShare.id}) to ${targetOfficer} (${targetStation}) for ${expiryDays} days`
+        );
+        setIsShareModalOpen(false);
+        setSharePurpose('');
+      }
     );
-    setIsShareModalOpen(false);
-    setSharePurpose('');
   };
 
   const handleRevokeShare = (shareId: string, recipient: string) => {
-    setActiveShares(activeShares.map((s) => s.id === shareId ? { ...s, status: 'REVOKED' } : s));
-    onLogBlockchainEvent('INTER_STATION_SHARE', `REVOKED case access token (${shareId}) immediately for ${recipient}`);
+    requestBiometricClearance(
+      'Emergency Token Revocation Authorization',
+      `Officer biometric verification required to invalidate and burn cryptographic discovery token ${shareId} for ${recipient}`,
+      () => {
+        setActiveShares(activeShares.map((s) => s.id === shareId ? { ...s, status: 'REVOKED' } : s));
+        onLogBlockchainEvent('INTER_STATION_SHARE', `REVOKED case access token (${shareId}) immediately for ${recipient}`);
+      }
+    );
+  };
+
+  const handlePreviewRecipientPortal = (share: InterStationShareRequest) => {
+    requestBiometricClearance(
+      'Recipient Discovery Portal Access',
+      `Officer biometric verification required to decrypt and preview shared case bundle ${share.id}`,
+      () => {
+        setPreviewingShare(share);
+      }
+    );
   };
 
   const handleCopyLink = (share: InterStationShareRequest) => {
@@ -257,7 +354,7 @@ export const InterStationSharing: React.FC<InterStationSharingProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setPreviewingShare(share)}
+                    onClick={() => handlePreviewRecipientPortal(share)}
                     disabled={isRevoked}
                     className="px-2.5 py-1 rounded bg-blue-600/10 hover:bg-blue-600/20 text-blue-300 text-xs font-medium border border-blue-500/20 flex items-center gap-1 transition disabled:opacity-40"
                   >
@@ -459,6 +556,17 @@ export const InterStationSharing: React.FC<InterStationSharingProps> = ({
           </div>
         </div>
       )}
+
+      {/* Biometric Security Clearance Gatekeeper Modal */}
+      <BiometricSecurityModal
+        isOpen={biometricModal.isOpen}
+        onClose={() => setBiometricModal((prev) => ({ ...prev, isOpen: false }))}
+        onSuccess={biometricModal.onSuccess}
+        officer={currentOfficer}
+        actionTitle={biometricModal.title}
+        actionDescription={biometricModal.description}
+        onLogBlockchainEvent={onLogBlockchainEvent}
+      />
 
     </div>
   );

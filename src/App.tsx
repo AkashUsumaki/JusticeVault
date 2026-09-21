@@ -93,7 +93,8 @@ export const App: React.FC = () => {
   // Real-time Event Toasts
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
 
-  // Modals & Modes
+  // Authentication & Modals
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isFieldMode, setIsFieldMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -175,14 +176,36 @@ export const App: React.FC = () => {
     pushToast('FIR Registered', `Case ${newCase.firNumber} sealed on Hyperledger Fabric`, 'success');
   };
 
-  // Add new Evidence
+  // Add new Evidence (auto-saves securely into Evidence Vault database and logs)
   const handleAddEvidence = (item: EvidenceItem) => {
     setEvidenceList([item, ...evidenceList]);
     pushToast(
-      'Evidence Stamped',
-      `${item.title} SHA-256 hashed & anchored to chain`,
+      'Evidence Stamped & Vaulted',
+      `${item.title} SHA-256 hashed & securely saved to Evidence Vault`,
       'success'
     );
+
+    // Auto-save to persistent encrypted server vault
+    fetch('/api/evidence/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: item.title,
+        category: item.category,
+        fileName: item.fileName,
+        fileDataBase64: item.signedUrl || item.thumbnailUrl || '',
+        mimeType: item.mimeType || 'image/jpeg',
+        officerId: item.uploadedByOfficerId || currentOfficer.id,
+        officerName: item.uploadedByOfficerName || currentOfficer.name,
+        officerBadge: currentOfficer.badgeNumber,
+        stationCode: currentOfficer.stationCode,
+        gpsLatitude: item.gpsLocation?.latitude || 13.0418,
+        gpsLongitude: item.gpsLocation?.longitude || 80.2342,
+        locationAddress: item.gpsLocation?.addressName || 'Crime Scene / Field Location',
+        tags: item.tags || ['FieldCapture', 'Vault'],
+        extractedText: item.extractedText || '',
+      }),
+    }).catch((err) => console.warn('Vault auto-persist notification:', err));
   };
 
   // Tamper Evidence state toggle (for simulation test)
@@ -199,18 +222,19 @@ export const App: React.FC = () => {
     }
   };
 
-  // Log Blockchain Transaction to local Hyperledger Fabric simulation
+  // Log Blockchain Transaction to local Hyperledger Fabric simulation & backend persistent audit log
   const handleLogBlockchainEvent = (
     action: any,
     details: string,
     evidenceId?: string,
     evidenceHash?: string
   ) => {
+    const liveTimestamp = new Date().toISOString();
     const txId = `TX-${Date.now().toString(16).toUpperCase()}-${Math.floor(Math.random() * 900) + 100}`;
     const newTx: BlockchainTransaction = {
       id: txId,
       txId,
-      timestamp: new Date().toISOString(),
+      timestamp: liveTimestamp,
       action,
       officerId: currentOfficer.id,
       officerName: currentOfficer.name,
@@ -227,7 +251,62 @@ export const App: React.FC = () => {
       latestBlock.transactions = [newTx, ...latestBlock.transactions];
       return [latestBlock, ...prev.slice(1)];
     });
+
+    // Also persist to backend live audit trail
+    fetch('/api/blockchain/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        details,
+        officerId: currentOfficer.id,
+        officerName: currentOfficer.name,
+        officerBadge: currentOfficer.badgeNumber,
+        stationCode: currentOfficer.stationCode,
+        evidenceId,
+        evidenceHash,
+        timestamp: liveTimestamp,
+      }),
+    }).catch((err) => console.warn('Audit trail network commit:', err));
   };
+
+  // If officer is not authenticated, strictly show the Department Access Gateway
+  if (!isAuthenticated) {
+    return (
+      <div className={`min-h-screen bg-[#040e1c] text-slate-200 flex flex-col font-sans selection:bg-amber-600 selection:text-white relative ${
+        fontSizeScale === 'large' ? 'text-base' : fontSizeScale === 'small' ? 'text-xs' : 'text-sm'
+      }`}>
+        {/* Official Government of India GIGW Masthead Strip */}
+        <GovernmentMasthead onFontSizeChange={setFontSizeScale} />
+
+        {/* Dedicated Police Authentication Portal Gateway */}
+        <div className="flex-1 flex flex-col items-center justify-center p-4 relative overflow-hidden bg-gradient-to-b from-[#061833] via-[#040e1c] to-[#020710]">
+          {/* Subtle National Police Seal Watermark */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5">
+            <ShieldCheck className="w-96 h-96 text-blue-400" />
+          </div>
+
+          <AuthModal
+            isOpen={true}
+            isMandatoryGateway={true}
+            onLoginSuccess={(officer) => {
+              setCurrentOfficer(officer);
+              setIsAuthenticated(true);
+              setIsAuthModalOpen(false);
+              handleLogBlockchainEvent(
+                'OFFICER_AUTH_LOGIN',
+                `Officer ${officer.name} (${officer.badgeNumber}) authenticated via 3-Factor Clearance (Manual Credentials + Face Liveness + AFIS Fingerprint)`
+              );
+              pushToast('Officer Authenticated', `Welcome, ${officer.name} (${officer.badgeNumber})`, 'success');
+            }}
+          />
+        </div>
+
+        {/* Official Government of India Portal Footer */}
+        <GovernmentFooter />
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen bg-[#040e1c] text-slate-200 flex flex-col font-sans selection:bg-amber-600 selection:text-white relative ${
@@ -243,7 +322,11 @@ export const App: React.FC = () => {
         currentLang={currentLang}
         onLanguageChange={setCurrentLang}
         onSwitchOfficerClick={() => setIsAuthModalOpen(true)}
-        onLogout={() => setIsAuthModalOpen(true)}
+        onLogout={() => {
+          setIsAuthenticated(false);
+          setIsAuthModalOpen(true);
+          pushToast('Officer Logged Out', 'Officer session cleared. Manual authentication required to re-enter.', 'info');
+        }}
         isFieldMode={isFieldMode}
         onToggleFieldMode={() => {
           setIsFieldMode(!isFieldMode);
@@ -263,7 +346,7 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-2 overflow-x-auto">
             <span className="text-[10px] uppercase font-bold text-amber-400 shrink-0 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-              सक्रिय प्राथमिकी / ACTIVE FIR:
+              ACTIVE INVESTIGATION / FIR:
             </span>
             <select
               value={selectedCase.caseId}
@@ -333,6 +416,7 @@ export const App: React.FC = () => {
           {currentTab === 'DASHBOARD' && (
             <CommandCenterDashboard
               cases={cases}
+              selectedCase={selectedCase}
               onSelectCase={(c) => {
                 setSelectedCase(c);
                 setCurrentTab('EVIDENCE');
@@ -418,19 +502,21 @@ export const App: React.FC = () => {
               {evidenceSubTab === 'DATABASE' ? (
                 <SecureDatabaseView
                   selectedCase={selectedCase}
+                  currentOfficer={currentOfficer}
                   onEvidenceUpdated={syncWithDatabaseBackend}
                   onSelectEvidence={(ev) => {
                     setEvidenceSubTab('CATALOG');
                   }}
+                  onLogBlockchainEvent={handleLogBlockchainEvent}
                 />
               ) : (
                 <EvidenceManager
-                  evidenceList={evidenceList}
+                  evidenceList={evidenceList.filter((e) => e.caseId === selectedCase.caseId)}
                   caseItem={selectedCase}
                   currentOfficer={currentOfficer}
                   currentLang={currentLang}
                   onAddEvidence={handleAddEvidence}
-                  onTamperToggle={handleTamperEvidence}
+                  onTamperEvidence={handleTamperEvidence}
                   onLogBlockchainEvent={handleLogBlockchainEvent}
                 />
               )}
@@ -441,7 +527,9 @@ export const App: React.FC = () => {
           {currentTab === 'VICTIM_ENQUIRY' && (
             <VictimEnquiry
               selectedCase={selectedCase}
-              evidenceList={evidenceList}
+              evidenceList={evidenceList.filter((e) => e.caseId === selectedCase.caseId)}
+              currentOfficer={currentOfficer}
+              onLogBlockchainEvent={handleLogBlockchainEvent}
               onSelectEvidence={(ev) => {
                 setCurrentTab('EVIDENCE');
                 setEvidenceSubTab('DATABASE');
@@ -455,7 +543,7 @@ export const App: React.FC = () => {
             <div className="h-[calc(100vh-140px)] min-h-[550px]">
               <OSMEvidenceMap
                 selectedCase={selectedCase}
-                evidenceList={evidenceList}
+                evidenceList={evidenceList.filter((e) => e.caseId === selectedCase.caseId)}
                 onSelectEvidence={(ev) => {
                   setCurrentTab('EVIDENCE');
                   setEvidenceSubTab('DATABASE');
@@ -497,6 +585,7 @@ export const App: React.FC = () => {
               evidenceList={evidenceList.filter((e) => e.caseId === selectedCase.caseId)}
               currentOfficer={currentOfficer}
               currentLang={currentLang}
+              onLogBlockchainEvent={handleLogBlockchainEvent}
               onMineBlock={() => {
                 const newBlockNum = blocks.length + 1;
                 const newHash = `0x${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}b881`;
@@ -680,13 +769,14 @@ export const App: React.FC = () => {
       {/* KYC Face Auth & Officer Switcher Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
+        isMandatoryGateway={false}
         onClose={() => setIsAuthModalOpen(false)}
         onLoginSuccess={(officer) => {
           setCurrentOfficer(officer);
           setIsAuthModalOpen(false);
           handleLogBlockchainEvent(
             'OFFICER_AUTH_LOGIN',
-            `Officer ${officer.name} (${officer.badgeNumber}) authenticated via KYC Face Liveness & MFA OTP`
+            `Officer ${officer.name} (${officer.badgeNumber}) switched and authenticated via 3-Factor Multi-Biometric Clearance`
           );
           pushToast('Officer Authenticated', `${officer.name} (${officer.badgeNumber})`, 'success');
         }}

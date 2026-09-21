@@ -31,6 +31,9 @@ interface NavbarProps {
   onViewTamperAlerts: () => void;
   onToggleMobileMenu?: () => void;
   isMobileMenuOpen?: boolean;
+  selectedCase?: any;
+  availableCases?: any[];
+  onSelectCase?: (c: any) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -45,10 +48,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   onViewTamperAlerts,
   onToggleMobileMenu,
   isMobileMenuOpen = false,
+  selectedCase,
+  availableCases = [],
+  onSelectCase,
 }) => {
   const t = translations[currentLang] || translations.en;
   const [secondsRemaining, setSecondsRemaining] = useState<number>(900);
   const [isOfficerMenuOpen, setIsOfficerMenuOpen] = useState(false);
+  const [isCaseSelectorOpen, setIsCaseSelectorOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -115,15 +122,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             <NationalEmblem size={28} className="shrink-0" />
             <div>
               <div className="flex items-center gap-1.5 leading-none">
-                <span className="font-bold text-xs sm:text-sm text-white tracking-tight font-serif">
-                  न्याय-साक्ष्य
-                </span>
-                <span className="text-[10px] sm:text-xs text-amber-400 font-bold tracking-wider">
+                <span className="font-bold text-sm sm:text-base text-white tracking-wide">
                   JusticeVault
                 </span>
+                <span className="text-[10px] text-amber-400 font-semibold tracking-wider font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 hidden xs:inline">
+                  SECURE POLICE PORTAL
+                </span>
               </div>
-              <div className="text-[8px] sm:text-[9px] text-slate-300 font-medium tracking-tight truncate max-w-[160px] sm:max-w-none">
-                भारत सरकार • Ministry of Home Affairs • ICJS
+              <div className="text-[9px] text-slate-300 font-medium tracking-tight truncate max-w-[170px] sm:max-w-none">
+                Government of India • Ministry of Home Affairs • ICJS
               </div>
             </div>
           </div>
@@ -132,13 +139,63 @@ export const Navbar: React.FC<NavbarProps> = ({
             <DigitalIndiaBadge />
           </div>
 
-          {/* Active Docket Badge */}
-          <div className="hidden sm:flex items-center gap-1.5 min-w-0 pl-2">
-            <span className="text-amber-400 text-[10px] font-bold tracking-wider uppercase">DOCKET:</span>
-            <span className="bg-blue-950/80 px-2.5 py-0.5 rounded border border-blue-700/60 text-amber-200 font-mono text-[11px] tracking-wider truncate">
-              FIR-2026-CHN-00892
-            </span>
-          </div>
+          {/* Active Case / FIR Badge with Direct Switcher */}
+          {selectedCase && (
+            <div className="relative pl-2">
+              <button
+                onClick={() => setIsCaseSelectorOpen(!isCaseSelectorOpen)}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-blue-950 to-indigo-950 px-2.5 py-1 rounded-lg border border-amber-500/40 text-amber-200 hover:border-amber-400 transition shadow-sm text-left group"
+                title="Click to switch active FIR case"
+              >
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className="text-amber-400 text-[9px] font-bold tracking-wider uppercase">ACTIVE FIR:</span>
+                    <span className="font-mono text-xs font-bold text-white truncate">{selectedCase.firNumber}</span>
+                    <ChevronDown className="w-3 h-3 text-amber-300/80 group-hover:text-amber-300 ml-0.5 shrink-0" />
+                  </div>
+                  <div className="text-[9px] text-slate-300 truncate max-w-[140px] sm:max-w-[180px]">
+                    {selectedCase.policeStation.split(',')[0]}
+                  </div>
+                </div>
+              </button>
+
+              {/* Dropdown Case Switcher */}
+              {isCaseSelectorOpen && availableCases.length > 0 && (
+                <div className="absolute top-full left-2 mt-1.5 w-72 bg-[#040e1c] border border-blue-600/50 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase px-2 py-1 border-b border-blue-900/60 flex items-center justify-between">
+                    <span>Select Active FIR Investigation</span>
+                    <span className="text-amber-400">{availableCases.length} Cases</span>
+                  </div>
+                  <div className="mt-1 space-y-1 max-h-60 overflow-y-auto">
+                    {availableCases.map((c: any) => (
+                      <button
+                        key={c.caseId}
+                        onClick={() => {
+                          if (onSelectCase) onSelectCase(c);
+                          setIsCaseSelectorOpen(false);
+                        }}
+                        className={`w-full text-left p-2 rounded-lg text-xs transition flex flex-col gap-0.5 ${
+                          selectedCase.caseId === c.caseId
+                            ? 'bg-blue-600/30 border border-blue-500/50 text-white'
+                            : 'hover:bg-blue-900/40 text-slate-300 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-amber-300">{c.firNumber}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-950 border border-blue-800 text-blue-300">
+                            {c.status.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-200 truncate">{c.briefDescription}</span>
+                        <span className="text-[9px] text-slate-400 truncate">{c.policeStation}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Controls */}
@@ -169,10 +226,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden md:inline">{isFieldMode ? 'Exit Field Mode' : 'Field Mode'}</span>
           </button>
 
-          {/* Language Switcher with Hindi, English, Tamil, Malayalam */}
+          {/* Language Switcher */}
           <div className="flex items-center bg-blue-950/80 border border-blue-800/70 rounded p-0.5">
             <Globe className="w-3.5 h-3.5 text-amber-400 ml-1 mr-0.5 hidden xs:block" />
-            {(['en', 'hi', 'ta', 'ml'] as LanguageCode[]).map((lang) => (
+            {(['en', 'ta', 'ml'] as LanguageCode[]).map((lang) => (
               <button
                 key={lang}
                 onClick={() => onLanguageChange(lang)}
@@ -182,7 +239,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {lang === 'en' ? 'EN' : lang === 'hi' ? 'हिन्दी' : lang === 'ta' ? 'தமிழ்' : 'മല'}
+                {lang === 'en' ? 'EN' : lang === 'ta' ? 'TAMIL' : 'MALAYALAM'}
               </button>
             ))}
           </div>

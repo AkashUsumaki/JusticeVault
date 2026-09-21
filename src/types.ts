@@ -241,6 +241,11 @@ export interface VictimClaimComparison {
   verdict: 'CORROBORATED' | 'CONTRADICTED' | 'NEW_LEAD' | 'UNVERIFIED';
   confidence: number;
   reasoning: string;
+  contradictedEntity?: string; // e.g. "Transaction Amount / Financial Value"
+  victimClaimValue?: string; // e.g. "₹10,000"
+  evidenceValue?: string; // e.g. "₹5,00,000"
+  contradictingEvidenceTitle?: string; // e.g. "ICICI Bank Forensic Transaction Statement"
+  contradictingEvidenceId?: string;
   matchingEvidence: {
     evidenceId: string;
     evidenceTitle: string;

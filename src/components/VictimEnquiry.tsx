@@ -30,28 +30,56 @@ import {
   VictimEnquiryRecord,
   VictimEnquiryComparison,
   VictimClaimComparison,
+  OfficerUser,
 } from '../types';
+import { BiometricSecurityModal } from './BiometricSecurityModal';
 
 interface VictimEnquiryProps {
   selectedCase: FIRDetails | null;
   evidenceList: EvidenceItem[];
+  currentOfficer?: OfficerUser;
   onSelectEvidence?: (evidence: EvidenceItem) => void;
   onEnquirySaved?: () => void;
+  onLogBlockchainEvent?: (action: any, details: string, evidenceId?: string, evidenceHash?: string) => void;
 }
 
 export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
   selectedCase,
   evidenceList,
+  currentOfficer,
   onSelectEvidence,
   onEnquirySaved,
+  onLogBlockchainEvent,
 }) => {
+  // Biometric Security Gatekeeper State
+  const [biometricModal, setBiometricModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onSuccess: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onSuccess: () => {},
+  });
+
+  const requestBiometricClearance = (title: string, description: string, onSuccess: () => void) => {
+    setBiometricModal({
+      isOpen: true,
+      title,
+      description,
+      onSuccess,
+    });
+  };
+
   // Enquiry Input State
   const [victimName, setVictimName] = useState<string>(selectedCase?.complainant.name || 'S. Rajendran');
   const [victimContact, setVictimContact] = useState<string>(selectedCase?.complainant.contact || '+91 98401 23456');
   const [incidentLocation, setIncidentLocation] = useState<string>(
     selectedCase?.incidentLocation || 'SBI ATM, Usman Road, T. Nagar, Chennai'
   );
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'ta' | 'ml' | 'hi'>('en');
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'ta' | 'ml'>('en');
 
   // Speech Recognition & Audio Recording State
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -97,6 +125,26 @@ export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
 
   useEffect(() => {
     loadSavedEnquiries();
+    if (selectedCase) {
+      setVictimName(selectedCase.complainant.name || '');
+      setVictimContact(selectedCase.complainant.contact || '');
+      setIncidentLocation(selectedCase.incidentLocation || '');
+
+      if (selectedCase.caseId === 'TN-MDU-2026-002194') {
+        setTranscriptText(
+          'On August 13 at around 5:30 AM, our milk delivery boy noticed the front shutter of Muthulakshmi Jewellers on South Avani Moola Street was bent and the padlock cut. I rushed immediately and saw the cash drawer pried open and 450 grams of hallmark gold necklaces missing from the display showcase. Rear alley CCTV captured a masked man with a heavy cutter around 3:15 AM escaping on a red Yamaha bike.'
+        );
+      } else if (selectedCase.caseId === 'KL-TVM-2026-001087') {
+        setTranscriptText(
+          'I was on night watch duty at Lakshmi Timber Depot on July 27 evening. Around 7:15 PM, I heard shouting and violent clattering from the accounts cabin. I saw timber buyer Pradeep rushing out toward the marsh canal holding a heavy iron crowbar stained with dark fluid. I found the depot owner collapsed near his desk with head injuries.'
+        );
+      } else {
+        setTranscriptText(
+          'I went to SBI ATM at Usman Road around 10:15 AM on Saturday to withdraw pension money. A young man wearing a dark jacket and blue full-face helmet offered to help with the machine. He swapped my debit card and took off on a black motorcycle waiting outside. Within 5 minutes, ₹1,80,000 was debited in multiple SMS alerts.'
+        );
+      }
+      setComparisonResult(null);
+    }
   }, [selectedCase]);
 
   // Handle Web Speech Recognition
@@ -226,17 +274,24 @@ export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
   };
 
   // Load sample victim statement in selected language for rapid testing
-  const handleLoadSampleStatement = (lang: 'en' | 'ta' | 'ml') => {
-    setSelectedLanguage(lang);
-    if (lang === 'ta') {
+  const handleLoadSampleStatement = (lang: 'en' | 'ta' | 'ml' | 'contradiction') => {
+    if (lang === 'contradiction') {
+      setSelectedLanguage('en');
+      setTranscriptText(
+        'I visited the bank yesterday. The suspect tricked me and swapped my card. But only ₹10,000 was stolen from my bank account, not more. Also, this incident happened at 9:00 PM in the night.'
+      );
+    } else if (lang === 'ta') {
+      setSelectedLanguage('ta');
       setTranscriptText(
         'நான் சனிக்கிழமை காலை 10:15 மணிக்கு உஸ்மான் சாலையில் உள்ள எஸ்பிஐ ஏடிஎம்-க்கு ஓய்வூதியப் பணம் எடுக்கச் சென்றேன். அப்போது கருப்பு நிற ஜாக்கெட் மற்றும் நீல நிற ஹெல்மெட் அணிந்த இளைஞன் ஒருவன் உதவி செய்வதாக கூறி என் கார்டை மாற்றிக் கொடுத்தான். வெளியே நின்றுகொண்டிருந்த கருப்பு நிற பைக்கில் ஏறி தப்பிச் சென்றான். 5 நிமிடங்களில் 1,80,000 ரூபாய் வங்கி கணக்கிலிருந்து எடுக்கப்பட்டது.'
       );
     } else if (lang === 'ml') {
+      setSelectedLanguage('ml');
       setTranscriptText(
         'ഓഗസ്റ്റ് 8 ശനിയാഴ്ച രാവിലെ 10:15 ഓടെ ഞാൻ ഉസ്മാൻ റോഡിലെ എസ്ബിഐ എടിഎമ്മിൽ പെൻഷൻ പണം പിൻവലിക്കാൻ പോയി. കറുത്ത ജാക്കറ്റും നീല ഹെൽമെറ്റും ധരിച്ച ഒരാൾ എന്നെ കബളിപ്പിച്ച് കാർഡ് മാറ്റി എടുത്തു. പുറത്ത് കാത്തുനിന്ന ബൈക്കിൽ രക്ഷപ്പെട്ടു. 1,80,000 രൂപ അക്കൗണ്ടിൽ നിന്ന് തട്ടിയെടുത്തു.'
       );
     } else {
+      setSelectedLanguage('en');
       setTranscriptText(
         'I went to SBI ATM at Usman Road around 10:15 AM on Saturday to withdraw pension money. A young man wearing a dark jacket and blue full-face helmet offered to help with the machine. He swapped my debit card and took off on a black motorcycle waiting outside. Within 5 minutes, ₹1,80,000 was debited in multiple SMS alerts.'
       );
@@ -244,12 +299,7 @@ export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
   };
 
   // Execute Exact Cross-Comparison with Evidence via Backend
-  const handleCompareWithEvidence = async () => {
-    if (!transcriptText || transcriptText.trim().length === 0) {
-      alert('Please record or enter the victim enquiry statement first.');
-      return;
-    }
-
+  const executeComparison = async () => {
     setIsComparing(true);
     setActiveTab('COMPARISON');
 
@@ -279,8 +329,21 @@ export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
     }
   };
 
+  const handleCompareWithEvidence = () => {
+    if (!transcriptText || transcriptText.trim().length === 0) {
+      alert('Please record or enter the victim enquiry statement first.');
+      return;
+    }
+
+    requestBiometricClearance(
+      'Evidentiary Cross-Analysis Clearance',
+      `Officer biometric verification required to correlate victim statement with forensic exhibits for FIR ${selectedCase?.firNumber || ''}`,
+      executeComparison
+    );
+  };
+
   // Save complete enquiry into the Secure Database
-  const handleSaveToDatabase = async () => {
+  const executeSaveToDatabase = async () => {
     setIsSaving(true);
     try {
       const enquiryPayload: Partial<VictimEnquiryRecord> = {
@@ -317,12 +380,26 @@ export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
         setTimeout(() => setSaveSuccess(false), 4000);
         await loadSavedEnquiries();
         if (onEnquirySaved) onEnquirySaved();
+        if (onLogBlockchainEvent) {
+          onLogBlockchainEvent(
+            'EVIDENCE_UPLOAD',
+            `Recorded and signed victim deposition for ${victimName} in case ${selectedCase?.firNumber}`
+          );
+        }
       }
     } catch (err) {
       console.error('Error saving victim enquiry:', err);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSaveToDatabase = () => {
+    requestBiometricClearance(
+      'Victim Deposition Database Filing',
+      `Officer biometric verification required to securely archive official Section 180 BNSS / 161 CrPC victim deposition for FIR ${selectedCase?.firNumber || ''}`,
+      executeSaveToDatabase
+    );
   };
 
   const formatSeconds = (sec: number) => {
@@ -456,9 +533,9 @@ export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
                     >
                       <option value="en">English (India)</option>
-                      <option value="ta">Tamil (தமிழ்)</option>
-                      <option value="ml">Malayalam (മലയാളം)</option>
-                      <option value="hi">Hindi (हिन्दी)</option>
+                      <option value="ta">Tamil</option>
+                      <option value="ml">Malayalam</option>
+                      <option value="hi">Hindi</option>
                     </select>
                   </div>
                 </div>
@@ -543,16 +620,23 @@ export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
                           English Statement
                         </button>
                         <button
+                          onClick={() => handleLoadSampleStatement('contradiction')}
+                          className="w-full text-left px-3 py-1.5 text-xs text-amber-300 hover:bg-slate-700 rounded font-medium flex items-center gap-1 border-t border-slate-700/60 pt-1.5"
+                        >
+                          <AlertTriangle className="w-3 h-3 text-amber-400" />
+                          Contradiction Test (₹10k vs Bank ₹5L)
+                        </button>
+                        <button
                           onClick={() => handleLoadSampleStatement('ta')}
                           className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 rounded"
                         >
-                          Tamil (தமிழ்) Statement
+                          Tamil Statement
                         </button>
                         <button
                           onClick={() => handleLoadSampleStatement('ml')}
                           className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 rounded"
                         >
-                          Malayalam (മലയാളം)
+                          Malayalam Statement
                         </button>
                       </div>
                     </div>
@@ -800,6 +884,45 @@ export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
                           </div>
                         </div>
 
+                        {/* Explicit Forensic Contradiction Callout Box */}
+                        {claim.verdict === 'CONTRADICTED' && (
+                          <div className="p-3.5 bg-rose-950/40 border border-rose-800/80 rounded-xl space-y-2.5 animate-in fade-in">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rose-900/50 pb-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-300">
+                                <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                                <span>CONTRADICTION DETECTED: {claim.contradictedEntity || 'Evidentiary Discrepancy'}</span>
+                              </div>
+                              {claim.contradictingEvidenceTitle && (
+                                <span className="px-2.5 py-1 rounded bg-rose-900/60 border border-rose-700/60 text-rose-100 text-[11px] font-semibold flex items-center gap-1.5">
+                                  <FileText className="w-3.5 h-3.5 text-rose-400" />
+                                  Evidence Source: <strong>{claim.contradictingEvidenceTitle}</strong>
+                                </span>
+                              )}
+                            </div>
+
+                            {(claim.victimClaimValue || claim.evidenceValue) && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                                <div className="p-2.5 rounded-lg bg-black/50 border border-rose-900/60 space-y-1">
+                                  <span className="text-[10px] text-rose-400 font-bold uppercase tracking-wider block">
+                                    Victim Spoken Enquiry Claims:
+                                  </span>
+                                  <p className="text-rose-200 font-bold font-mono text-sm">
+                                    {claim.victimClaimValue || claim.statementSnippet}
+                                  </p>
+                                </div>
+                                <div className="p-2.5 rounded-lg bg-black/50 border border-emerald-900/60 space-y-1">
+                                  <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider block">
+                                    Actual Forensic Evidence Disproves ({claim.contradictingEvidenceTitle || 'Case Evidence'}):
+                                  </span>
+                                  <p className="text-emerald-300 font-bold font-mono text-sm">
+                                    {claim.evidenceValue || 'Documented record in case file'}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Matched Evidence Sources */}
                         {claim.matchingEvidence && claim.matchingEvidence.length > 0 && (
                           <div className="pt-1">
@@ -955,6 +1078,17 @@ export const VictimEnquiry: React.FC<VictimEnquiryProps> = ({
           </div>
         )}
       </div>
+
+      {/* Biometric Security Clearance Gatekeeper Modal */}
+      <BiometricSecurityModal
+        isOpen={biometricModal.isOpen}
+        onClose={() => setBiometricModal((prev) => ({ ...prev, isOpen: false }))}
+        onSuccess={biometricModal.onSuccess}
+        officer={currentOfficer}
+        actionTitle={biometricModal.title}
+        actionDescription={biometricModal.description}
+        onLogBlockchainEvent={onLogBlockchainEvent}
+      />
     </div>
   );
 };

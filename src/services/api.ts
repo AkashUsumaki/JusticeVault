@@ -24,6 +24,7 @@ export async function runOcrAndEntityExtraction(params: {
   textContent?: string;
   base64Image?: string;
   fileName?: string;
+  mimeType?: string;
   language?: LanguageCode;
 }): Promise<{
   extractedText: string;
@@ -43,11 +44,39 @@ export async function runOcrAndEntityExtraction(params: {
   return data.data;
 }
 
+export async function runEvidenceItemOcr(evidenceId: string): Promise<{
+  success: boolean;
+  evidence: EvidenceItem;
+  ocrData: {
+    extractedText: string;
+    detectedLanguage: string;
+    ocrConfidence: number;
+    entities: ExtractedEntity[];
+  };
+}> {
+  const response = await fetch(`/api/evidence/${evidenceId}/ocr`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to run OCR on evidence');
+  }
+  return data;
+}
+
 export async function runSemanticSearch(params: {
   query: string;
   caseId?: string;
   documents: EvidenceItem[];
-}): Promise<{ documentId: string; score: number; highlight: string }[]> {
+  filterField?: string;
+}): Promise<{
+  documentId: string;
+  score: number;
+  highlight: string;
+  matchedField?: string;
+  matchedEntities?: ExtractedEntity[];
+}[]> {
   const response = await fetch('/api/ai/semantic-search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

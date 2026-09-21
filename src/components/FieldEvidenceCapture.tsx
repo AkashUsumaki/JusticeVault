@@ -26,6 +26,7 @@ import {
 import { EvidenceItem, FIRDetails, LanguageCode, OfficerUser } from '../types';
 import { calculateSHA256, calculateFileHash } from '../services/cryptoUtils';
 import { translations } from '../translations/i18n';
+import { BiometricSecurityModal } from './BiometricSecurityModal';
 
 interface FieldEvidenceCaptureProps {
   caseItem: FIRDetails;
@@ -43,6 +44,28 @@ export const FieldEvidenceCapture: React.FC<FieldEvidenceCaptureProps> = ({
   onLogBlockchainEvent,
 }) => {
   const t = translations[currentLang];
+
+  // Biometric Security Gatekeeper State
+  const [biometricModal, setBiometricModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onSuccess: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onSuccess: () => {},
+  });
+
+  const requestBiometricClearance = (title: string, description: string, onSuccess: () => void) => {
+    setBiometricModal({
+      isOpen: true,
+      title,
+      description,
+      onSuccess,
+    });
+  };
 
   const [activeMode, setActiveMode] = useState<'PHOTO' | 'AUDIO' | 'QR_TAG'>('PHOTO');
   const [isOnline, setIsOnline] = useState(true);
@@ -236,80 +259,32 @@ export const FieldEvidenceCapture: React.FC<FieldEvidenceCaptureProps> = ({
       return;
     }
 
-    const canvas = createForensicWatermarkCanvas(videoRef.current);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    setCapturedPhotoUrl(dataUrl);
-
-    // Calculate real SHA-256 of the watermarked image
-    const sha256 = await calculateSHA256(dataUrl);
-    const timestamp = new Date().toISOString();
-
-    const newEvd: EvidenceItem = {
-      id: `EVD-FIELD-${Date.now().toString().slice(-6)}`,
-      caseId: caseItem.caseId,
-      title: photoTitle || 'Crime Scene Photo (GPS Watermarked)',
-      category: 'IMAGE',
-      fileName: `scene_photo_${Date.now()}.jpg`,
-      fileSizeBytes: Math.round((dataUrl.length * 3) / 4),
-      mimeType: 'image/jpeg',
-      sha256Hash: sha256,
-      uploadTimestamp: timestamp,
-      uploadedByOfficerId: currentOfficer.id,
-      uploadedByOfficerName: currentOfficer.name,
-      deviceInfo: `Mobile Field Kit (${currentOfficer.badgeNumber})`,
-      gpsLocation: {
-        latitude: gpsData.latitude,
-        longitude: gpsData.longitude,
-        addressName: gpsData.address,
-      },
-      encryptionStatus: 'AES-256-ENCRYPTED',
-      malwareScanStatus: 'CLEAN',
-      version: 1,
-      extractedText: `Forensic scene photograph captured at ${gpsData.address} [Lat: ${gpsData.latitude}, Lng: ${gpsData.longitude}]. Embedded cryptographic seal verified.`,
-      tags: ['FieldCapture', 'CrimeScene', 'GPSWatermarked', 'BSA_Sec65B'],
-      signedUrl: dataUrl,
-      thumbnailUrl: dataUrl,
-      sourceSystem: 'MOBILE_APP',
-    };
-
-    onAddEvidence(newEvd);
-    onLogBlockchainEvent(
-      'EVIDENCE_UPLOAD',
-      `Mobile Field Photo captured with GPS watermark: ${photoTitle}`,
-      newEvd.id,
-      sha256
-    );
-  };
-
-  // File Upload as fallback / alternative
-  const handlePhotoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = createForensicWatermarkCanvas(img);
+    requestBiometricClearance(
+      'Field Photo Evidence Authorization',
+      `Officer biometric verification required to sign and commit watermarked photographic evidence for FIR ${caseItem.firNumber}`,
+      async () => {
+        if (!videoRef.current) return;
+        const canvas = createForensicWatermarkCanvas(videoRef.current);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         setCapturedPhotoUrl(dataUrl);
 
+        // Calculate real SHA-256 of the watermarked image
         const sha256 = await calculateSHA256(dataUrl);
         const timestamp = new Date().toISOString();
 
         const newEvd: EvidenceItem = {
           id: `EVD-FIELD-${Date.now().toString().slice(-6)}`,
           caseId: caseItem.caseId,
-          title: photoTitle || file.name,
+          title: photoTitle || 'Crime Scene Photo (GPS Watermarked)',
           category: 'IMAGE',
-          fileName: file.name,
-          fileSizeBytes: file.size,
-          mimeType: file.type || 'image/jpeg',
+          fileName: `scene_photo_${Date.now()}.jpg`,
+          fileSizeBytes: Math.round((dataUrl.length * 3) / 4),
+          mimeType: 'image/jpeg',
           sha256Hash: sha256,
           uploadTimestamp: timestamp,
           uploadedByOfficerId: currentOfficer.id,
           uploadedByOfficerName: currentOfficer.name,
-          deviceInfo: `Officer Device (${currentOfficer.badgeNumber})`,
+          deviceInfo: `Mobile Field Kit (${currentOfficer.badgeNumber})`,
           gpsLocation: {
             latitude: gpsData.latitude,
             longitude: gpsData.longitude,
@@ -318,8 +293,8 @@ export const FieldEvidenceCapture: React.FC<FieldEvidenceCaptureProps> = ({
           encryptionStatus: 'AES-256-ENCRYPTED',
           malwareScanStatus: 'CLEAN',
           version: 1,
-          extractedText: `File evidence uploaded from field device by ${currentOfficer.name}. GPS watermark embedded.`,
-          tags: ['FieldUpload', 'ScenePhoto', 'GPSWatermarked'],
+          extractedText: `Forensic scene photograph captured at ${gpsData.address} [Lat: ${gpsData.latitude}, Lng: ${gpsData.longitude}]. Embedded cryptographic seal verified.`,
+          tags: ['FieldCapture', 'CrimeScene', 'GPSWatermarked', 'BSA_Sec65B'],
           signedUrl: dataUrl,
           thumbnailUrl: dataUrl,
           sourceSystem: 'MOBILE_APP',
@@ -328,14 +303,75 @@ export const FieldEvidenceCapture: React.FC<FieldEvidenceCaptureProps> = ({
         onAddEvidence(newEvd);
         onLogBlockchainEvent(
           'EVIDENCE_UPLOAD',
-          `Field Evidence Photo uploaded: ${file.name}`,
+          `Mobile Field Photo captured with GPS watermark: ${photoTitle}`,
           newEvd.id,
           sha256
         );
-      };
-      img.src = reader.result as string;
-    };
-    reader.readAsDataURL(file);
+      }
+    );
+  };
+
+  // File Upload as fallback / alternative
+  const handlePhotoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    requestBiometricClearance(
+      'Field Photo File Upload Clearance',
+      `Officer biometric verification required to ingest and seal device image ${file.name} for FIR ${caseItem.firNumber}`,
+      () => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = async () => {
+            const canvas = createForensicWatermarkCanvas(img);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            setCapturedPhotoUrl(dataUrl);
+
+            const sha256 = await calculateSHA256(dataUrl);
+            const timestamp = new Date().toISOString();
+
+            const newEvd: EvidenceItem = {
+              id: `EVD-FIELD-${Date.now().toString().slice(-6)}`,
+              caseId: caseItem.caseId,
+              title: photoTitle || file.name,
+              category: 'IMAGE',
+              fileName: file.name,
+              fileSizeBytes: file.size,
+              mimeType: file.type || 'image/jpeg',
+              sha256Hash: sha256,
+              uploadTimestamp: timestamp,
+              uploadedByOfficerId: currentOfficer.id,
+              uploadedByOfficerName: currentOfficer.name,
+              deviceInfo: `Officer Device (${currentOfficer.badgeNumber})`,
+              gpsLocation: {
+                latitude: gpsData.latitude,
+                longitude: gpsData.longitude,
+                addressName: gpsData.address,
+              },
+              encryptionStatus: 'AES-256-ENCRYPTED',
+              malwareScanStatus: 'CLEAN',
+              version: 1,
+              extractedText: `File evidence uploaded from field device by ${currentOfficer.name}. GPS watermark embedded.`,
+              tags: ['FieldUpload', 'ScenePhoto', 'GPSWatermarked'],
+              signedUrl: dataUrl,
+              thumbnailUrl: dataUrl,
+              sourceSystem: 'MOBILE_APP',
+            };
+
+            onAddEvidence(newEvd);
+            onLogBlockchainEvent(
+              'EVIDENCE_UPLOAD',
+              `Field Evidence Photo uploaded: ${file.name}`,
+              newEvd.id,
+              sha256
+            );
+          };
+          img.src = reader.result as string;
+        };
+        reader.readAsDataURL(file);
+      }
+    );
   };
 
   // 3. Real Audio Recorder with Web Speech & MediaRecorder
@@ -412,50 +448,56 @@ export const FieldEvidenceCapture: React.FC<FieldEvidenceCaptureProps> = ({
   const handleSaveAudioEvidence = async () => {
     if (!recordedAudioBlob) return;
 
-    const sha256 = await calculateFileHash(recordedAudioBlob);
-    const timestamp = new Date().toISOString();
-    const duration = recordingSeconds || 5;
+    requestBiometricClearance(
+      'Audio Deposition Vault Authorization',
+      `Officer biometric verification required to commit recorded oral testimony from ${witnessName} to evidence vault for FIR ${caseItem.firNumber}`,
+      async () => {
+        if (!recordedAudioBlob) return;
+        const sha256 = await calculateFileHash(recordedAudioBlob);
+        const timestamp = new Date().toISOString();
+        const duration = recordingSeconds || 5;
 
-    const newEvd: EvidenceItem = {
-      id: `EVD-AUDIO-${Date.now().toString().slice(-6)}`,
-      caseId: caseItem.caseId,
-      title: `Field Oral Statement: ${witnessName}`,
-      category: 'AUDIO',
-      fileName: `field_audio_${Date.now()}.webm`,
-      fileSizeBytes: recordedAudioBlob.size || 340000,
-      mimeType: 'audio/webm',
-      sha256Hash: sha256,
-      uploadTimestamp: timestamp,
-      uploadedByOfficerId: currentOfficer.id,
-      uploadedByOfficerName: currentOfficer.name,
-      deviceInfo: `Mobile Field Mic (${currentOfficer.badgeNumber})`,
-      gpsLocation: {
-        latitude: gpsData.latitude,
-        longitude: gpsData.longitude,
-        addressName: gpsData.address,
-      },
-      encryptionStatus: 'AES-256-ENCRYPTED',
-      malwareScanStatus: 'CLEAN',
-      version: 1,
-      audioDurationSeconds: duration,
-      extractedText: liveTranscript || `Oral statement recorded in field from ${witnessName} with explicit consent checkbox signed under Section 180 BNSS 2023.`,
-      tags: ['AudioStatement', 'FieldInterview', 'BNSS_Sec180'],
-      signedUrl: recordedAudioUrl || undefined,
-      sourceSystem: 'MOBILE_APP',
-    };
+        const newEvd: EvidenceItem = {
+          id: `EVD-AUDIO-${Date.now().toString().slice(-6)}`,
+          caseId: caseItem.caseId,
+          title: `Field Oral Statement: ${witnessName}`,
+          category: 'AUDIO',
+          fileName: `field_audio_${Date.now()}.webm`,
+          fileSizeBytes: recordedAudioBlob.size || 340000,
+          mimeType: 'audio/webm',
+          sha256Hash: sha256,
+          uploadTimestamp: timestamp,
+          uploadedByOfficerId: currentOfficer.id,
+          uploadedByOfficerName: currentOfficer.name,
+          deviceInfo: `Mobile Field Mic (${currentOfficer.badgeNumber})`,
+          gpsLocation: {
+            latitude: gpsData.latitude,
+            longitude: gpsData.longitude,
+            addressName: gpsData.address,
+          },
+          encryptionStatus: 'AES-256-ENCRYPTED',
+          malwareScanStatus: 'CLEAN',
+          version: 1,
+          audioDurationSeconds: duration,
+          extractedText: liveTranscript || `Oral statement recorded in field from ${witnessName} with explicit consent checkbox signed under Section 180 BNSS 2023.`,
+          tags: ['AudioStatement', 'FieldInterview', 'BNSS_Sec180'],
+          signedUrl: recordedAudioUrl || undefined,
+          sourceSystem: 'MOBILE_APP',
+        };
 
-    onAddEvidence(newEvd);
-    onLogBlockchainEvent(
-      'EVIDENCE_UPLOAD',
-      `Recorded Field Audio Statement from ${witnessName} (${duration}s)`,
-      newEvd.id,
-      sha256
+        onAddEvidence(newEvd);
+        onLogBlockchainEvent(
+          'EVIDENCE_UPLOAD',
+          `Recorded Field Audio Statement from ${witnessName} (${duration}s)`,
+          newEvd.id,
+          sha256
+        );
+
+        setRecordedAudioUrl(null);
+        setRecordedAudioBlob(null);
+        setLiveTranscript('');
+      }
     );
-
-    alert(`Audio Evidence for "${witnessName}" successfully committed to Evidence Vault and Blockchain!`);
-    setRecordedAudioUrl(null);
-    setRecordedAudioBlob(null);
-    setLiveTranscript('');
   };
 
   // 4. QR Bag Tagging with Real Canvas Drawing
@@ -532,39 +574,45 @@ export const FieldEvidenceCapture: React.FC<FieldEvidenceCaptureProps> = ({
   }, [activeMode, qrBagCode, seizedItemName]);
 
   const handleSealQRBag = async () => {
-    const timestamp = new Date().toISOString();
-    const sha256 = await calculateSHA256(`QRBAG-${qrBagCode}-${seizedItemName}-${timestamp}`);
+    requestBiometricClearance(
+      'Panchnama QR Bag Sealing Clearance',
+      `Officer biometric verification required to create tamper-evident cryptographic QR seal for physical item '${seizedItemName}' (${qrBagCode}) under FIR ${caseItem.firNumber}`,
+      async () => {
+        const timestamp = new Date().toISOString();
+        const sha256 = await calculateSHA256(`QRBAG-${qrBagCode}-${seizedItemName}-${timestamp}`);
 
-    const newEvd: EvidenceItem = {
-      id: `EVD-BAG-${Date.now().toString().slice(-6)}`,
-      caseId: caseItem.caseId,
-      title: `Sealed Evidence Bag: ${seizedItemName} (${qrBagCode})`,
-      category: 'FORENSIC_REPORT',
-      fileName: `qr_seizure_${qrBagCode}.json`,
-      fileSizeBytes: 42000,
-      mimeType: 'application/json',
-      sha256Hash: sha256,
-      uploadTimestamp: timestamp,
-      uploadedByOfficerId: currentOfficer.id,
-      uploadedByOfficerName: currentOfficer.name,
-      deviceInfo: `QR Barcode Scanner (${currentOfficer.badgeNumber})`,
-      gpsLocation: {
-        latitude: gpsData.latitude,
-        longitude: gpsData.longitude,
-        addressName: gpsData.address,
-      },
-      encryptionStatus: 'AES-256-ENCRYPTED',
-      malwareScanStatus: 'CLEAN',
-      version: 1,
-      extractedText: `Tamper-evident barcode bag ${qrBagCode} containing '${seizedItemName}' sealed with Panchnama memo. Panchnama witnesses verified.`,
-      tags: ['EvidenceBag', 'PhysicalSeizure', 'QRTagged', 'Panchnama'],
-      sourceSystem: 'MOBILE_APP',
-    };
+        const newEvd: EvidenceItem = {
+          id: `EVD-BAG-${Date.now().toString().slice(-6)}`,
+          caseId: caseItem.caseId,
+          title: `Sealed Evidence Bag: ${seizedItemName} (${qrBagCode})`,
+          category: 'FORENSIC_REPORT',
+          fileName: `qr_seizure_${qrBagCode}.json`,
+          fileSizeBytes: 42000,
+          mimeType: 'application/json',
+          sha256Hash: sha256,
+          uploadTimestamp: timestamp,
+          uploadedByOfficerId: currentOfficer.id,
+          uploadedByOfficerName: currentOfficer.name,
+          deviceInfo: `QR Barcode Scanner (${currentOfficer.badgeNumber})`,
+          gpsLocation: {
+            latitude: gpsData.latitude,
+            longitude: gpsData.longitude,
+            addressName: gpsData.address,
+          },
+          encryptionStatus: 'AES-256-ENCRYPTED',
+          malwareScanStatus: 'CLEAN',
+          version: 1,
+          extractedText: `Tamper-evident barcode bag ${qrBagCode} containing '${seizedItemName}' sealed with Panchnama memo. Panchnama witnesses verified.`,
+          tags: ['EvidenceBag', 'PhysicalSeizure', 'QRTagged', 'Panchnama'],
+          sourceSystem: 'MOBILE_APP',
+        };
 
-    onAddEvidence(newEvd);
-    onLogBlockchainEvent('EVIDENCE_UPLOAD', `Sealed Tamper-Evident QR Evidence Bag ${qrBagCode}`, newEvd.id, sha256);
-    setBagSealedSuccess(true);
-    setTimeout(() => setBagSealedSuccess(false), 3500);
+        onAddEvidence(newEvd);
+        onLogBlockchainEvent('EVIDENCE_UPLOAD', `Sealed Tamper-Evident QR Evidence Bag ${qrBagCode}`, newEvd.id, sha256);
+        setBagSealedSuccess(true);
+        setTimeout(() => setBagSealedSuccess(false), 3500);
+      }
+    );
   };
 
   const handlePrintQRBag = () => {
@@ -967,6 +1015,17 @@ export const FieldEvidenceCapture: React.FC<FieldEvidenceCaptureProps> = ({
           </div>
         </div>
       )}
+
+      {/* Biometric Security Clearance Gatekeeper Modal */}
+      <BiometricSecurityModal
+        isOpen={biometricModal.isOpen}
+        onClose={() => setBiometricModal((prev) => ({ ...prev, isOpen: false }))}
+        onSuccess={biometricModal.onSuccess}
+        officer={currentOfficer}
+        actionTitle={biometricModal.title}
+        actionDescription={biometricModal.description}
+        onLogBlockchainEvent={onLogBlockchainEvent}
+      />
 
     </div>
   );

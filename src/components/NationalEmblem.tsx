@@ -4,7 +4,7 @@ import { ShieldCheck, Lock, ExternalLink, Award, FileText } from 'lucide-react';
 /**
  * Official State Emblem of India (Lion Capital of Ashoka) Vector Representation
  * Includes the four Asiatic lions, Ashoka Chakra (Dharma Wheel), bull, horse,
- * and the national motto "सत्यमेव जयते" (Truth Alone Triumphs).
+ * and the national motto "Satyameva Jayate" (Truth Alone Triumphs).
  */
 export const NationalEmblem: React.FC<{ className?: string; size?: number; monochrome?: boolean }> = ({
   className = '',
@@ -61,30 +61,30 @@ export const NationalEmblem: React.FC<{ className?: string; size?: number; monoc
         {/* Lower Base Pedestal */}
         <rect x="15" y="83" width="70" height="6" rx="2" fill={monochrome ? 'currentColor' : '#b45309'} />
 
-        {/* Inscription: Satyameva Jayate (सत्यमेव जयते in Devanagari) */}
+        {/* Inscription: Satyameva Jayate (Truth Alone Triumphs) in English */}
         <text
           x="50"
-          y="102"
+          y="103"
           textAnchor="middle"
-          fontSize="11"
+          fontSize="8"
           fontWeight="bold"
-          fontFamily="'Plus Jakarta Sans', sans-serif, 'Noto Sans Devanagari'"
+          fontFamily="'Plus Jakarta Sans', sans-serif"
           fill={monochrome ? 'currentColor' : '#f59e0b'}
-          letterSpacing="0.5"
+          letterSpacing="0.8"
         >
-          सत्यमेव जयते
+          SATYAMEVA JAYATE
         </text>
         <text
           x="50"
           y="114"
           textAnchor="middle"
-          fontSize="6.5"
-          fontWeight="700"
+          fontSize="5.5"
+          fontWeight="600"
           fontFamily="sans-serif"
           fill={monochrome ? 'currentColor' : '#94a3b8'}
-          letterSpacing="1"
+          letterSpacing="0.5"
         >
-          SATYAMEVA JAYATE
+          TRUTH ALONE TRIUMPHS
         </text>
       </svg>
     </div>
@@ -139,17 +139,17 @@ export const GovernmentMasthead: React.FC<{
         {/* Left: Official Government of India Identification */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-amber-300 font-serif">भारत सरकार</span>
+            <span className="font-semibold text-amber-300 font-serif">Government of India</span>
             <span className="text-slate-600">|</span>
-            <span className="font-medium text-slate-200">Government of India</span>
+            <span className="font-medium text-slate-200">Ministry of Home Affairs</span>
           </div>
 
           <span className="hidden sm:inline text-slate-600">•</span>
 
           <div className="hidden sm:flex items-center gap-1.5 text-slate-300">
-            <span className="text-amber-200/90 font-medium">गृह मंत्रालय</span>
+            <span className="text-amber-200/90 font-medium">National Police Portal</span>
             <span className="text-slate-600">/</span>
-            <span>Ministry of Home Affairs (MHA)</span>
+            <span>ICJS &amp; CCTNS Interconnected</span>
           </div>
         </div>
 
@@ -278,7 +278,7 @@ export const GovernmentFooter: React.FC = () => {
               <span>Sovereign Law Enforcement Authority</span>
             </h5>
             <p className="text-[10px]">
-              JusticeVault (न्याय-साक्ष्य) operates under the administrative authority of the Ministry of Home Affairs, Government of India, and State Police Headquarters in accordance with BNSS 2023.
+              JusticeVault operates under the administrative authority of the Ministry of Home Affairs, Government of India, and State Police Headquarters in accordance with BNSS 2023.
             </p>
           </div>
 
@@ -311,7 +311,7 @@ export const GovernmentFooter: React.FC = () => {
           <div className="flex items-center gap-2">
             <span>Last Updated: 07-Sep-2026</span>
             <span>•</span>
-            <span className="text-amber-400 font-medium">अति गोपनीय / STRICTLY CONFIDENTIAL</span>
+            <span className="text-amber-400 font-medium">STRICTLY CONFIDENTIAL • OFFICIAL USE ONLY</span>
           </div>
         </div>
       </div>
